@@ -1,0 +1,85 @@
+10/30: Mozillian scraping code done, working surprisingly well.
+Todo for tomorrow: check out tables for bugs, debuggers, and bugevents and make
+sure everything is plausible looking.
+
+Then run a small number of mozillian matches and make sure all goes well.
+
+Then run full mozillian scrape.
+
+(And then code for chat events, and then adj matrices. Maybe start krr
+homework before doing that though?)
+
+
+
+
+08/23: Have to clobber a few problematic nick changes in the logs (by preceding the line with a #). Sometimes prolific users take on each other's names (reasons unclear - prank? they're at the same computer?), resulting in big multi-person blobs.
+Also clobbering IRCMonkeys. May or may not be ultimately necessary.
+
+
+
+------------------------------
+for each 7 day window from a to b:
+    get all the debuggers who chatted during that time
+    get all the mentioned bugs that had activity during that time
+    for each db-db pair:
+        how many times did they talk?
+    for each db-b pair:
+        did db work on b?
+        
+Best solution: just use sqlite database rather than trying to walk through sequentially?
+
+Need to build following tables:
+
+Aliases:
+- dbger id (foreign key)
+- alias
+
+Debuggers:
+- debugger id (key)
+- e-mail
+- name
+
+Conversations:
+- init
+- recep
+- date
+
+Bug:
+- id
+- standard bug fields from csv
+
+Bug history:
+- debugger
+- date
+- action 
+
+1) Make aliases table
+
+Merging aliases. Make id -> aliases, and alias -> id dicts. For 
+canon = {}
+buckets = {}
+For (i, auth) in enum(authors):
+    for alias in auth:
+        canon[alias].append(i)
+        canoon[i].append(alias)
+        
+for (alias, ids) in canon.items():
+        
+
+        
+1 bob bobb
+2    bobb    Bob
+3            Bob     Bobcat
+
+bob:1, bobb:[1,2], Bob:[2,3], Bobcat:3
+1:[bob,bobb], 2:[bobb, Bob],3:[Bob,Bobcat]
+
+------------
+
+for aliasbucket in aliases:
+    if no alias is in the map:    
+        make canon author, and map all aliases to this canon author
+    else:
+        map[alias] gets aliasbucket added to it
+        # but if two aliases in the bucket map to different canon authors then... what?
+        # then merge those canon authors

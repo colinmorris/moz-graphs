@@ -1,0 +1,4 @@
+session.query(Month)
+session.query(Month).count()
+match = sesh.query(Alias).filter_by(alias=nick)
+start_date = session.query(func.min(Chat.date)).scalar()

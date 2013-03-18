@@ -1,0 +1,57 @@
+March 13~
+
+[WARN] Don't know how to deal with this many colons!David Baron [:dbaron] (don't cc:, use needinfo? instead)  Choosing the first mentioned nick.
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "main.py", line 50, in add_comments
+    BugEvent.scrape_comment_events(session, interval)
+  File "/home/colin/Dropbox/Joel/debuggers/src/bug_events.py", line 61, in scrape_comment_events
+    page = BugPage(bug.bzid)
+  File "/home/colin/Dropbox/Joel/debuggers/src/scraping/bug_scrape.py", line 249, in __init__
+    page = urlopen(url).read()
+  File "/usr/lib/python2.7/socket.py", line 351, in read
+    data = self._sock.recv(rbufsize)
+  File "/usr/lib/python2.7/httplib.py", line 541, in read
+    return self._read_chunked(amt)
+  File "/usr/lib/python2.7/httplib.py", line 592, in _read_chunked
+    value.append(self._safe_read(amt))
+  File "/usr/lib/python2.7/httplib.py", line 647, in _safe_read
+    chunk = self.fp.read(min(amt, MAXAMOUNT))
+  File "/usr/lib/python2.7/socket.py", line 380, in read
+    data = self._sock.recv(left)
+  File "/usr/lib/python2.7/ssl.py", line 232, in recv
+    return self.read(buflen)
+  File "/usr/lib/python2.7/ssl.py", line 151, in read
+    return self._sslobj.read(len)
+ssl.SSLError: The read operation timed out
+
+
+Jan 20:
+
+        About to populate months table from empty. Continue? (Y/*) y
+        First chat is 2006-10-04
+        First bug event is 1998-09-11
+        Starting months on 2006-10-04
+        Last chat is 2009-06-03
+        Last bug event is 2012-08-04
+        End months on or around 1998-09-11
+
+        "The only use case seems to be running scripts that happen
+         to be living inside a module's directory, which I've always seen as an
+         antipattern. " - Guido
+
+
+Jan 23:
+
+select count(*) from bugs;
+3272
+
+select count(*) from bugs where reported is null;
+3272
+
+Not good. TODO: Find out why this is. Everything looks fine in bug_summary.csv.
+
+select count(*) from bugs where reported is null;
+0
+
+GOOD!

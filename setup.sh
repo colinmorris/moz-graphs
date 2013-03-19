@@ -13,3 +13,5 @@ do
   echo "Linking from ${orig}${t} to ${dest}${t}"
   ln -s ${orig}${t} ${dest}${t}
 done
+
+echo 'Hey, have you changed ROOT_DIR in config.py? You should probably do that.'

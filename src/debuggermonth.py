@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 from src.alchemical_base import Base
 from src.months import Month
 from src.bugs import Bug
+from src.mozgraph import MozGraph, MozIRCGraph
 
 # TODO: Add an import of this module to the two relevant spots in utils.py and run an alembic migration
 
@@ -44,11 +45,11 @@ def populate_debuggermonths(session):
     assignee_ids = set(session.query(distinct(Bug.assignee_id)).all())
 
     for month in session.query(Month):
-        graph = # TODO: get graph corresponding to given month
+        graph = MozGraph.by_month(month, session)# TODO: should this be an IRC graph? I think so
         for debugger in graph.debuggers:
             if debugger.id in assignee_ids:
                 dm = DebuggerMonth(dbid=debugger.id, monthid=month.id)
-                # Fill in the graph stuff
+                # TODO: Fill in the graph variables
                 session.add(dm)
 
     session.commit()

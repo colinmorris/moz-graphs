@@ -2,10 +2,11 @@ __author__ = 'colin'
 
 import os
 
-ROOT_DIR = os.path.join(os.getenv('HOME'), 'Dropbox/Joel/debuggers')
+ROOT_DIR = os.path.join(os.getenv('HOME'), 'workspace/moz-graphs')
 
 DATA_DIR = os.path.join(ROOT_DIR, 'data')
 LOG_DIR = os.path.join(ROOT_DIR, 'logs')
+ADJ_DIR = os.path.join(ROOT_DIR, 'adj')
 
 DB_PATH = os.path.join(ROOT_DIR, 'src', 'alch.db')
 

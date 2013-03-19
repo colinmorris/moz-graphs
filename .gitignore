@@ -1,5 +1,8 @@
 *.py[cod]
 
+# Stupid temp files made by libreoffice
+.~lock*
+
 # C extensions
 *.so
 
@@ -33,3 +36,11 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+## DATA STUFF
+
+data
+chat_logs
+
+# Adjacency matrices
+adj/*.csv

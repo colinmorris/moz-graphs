@@ -11,13 +11,20 @@ __author__ = 'colin'
 from models import *
 from utils import *
 from sqlalchemy import   func
+from src.config import ADJ_DIR
 
 class AdjacencyMatrix(object):
 
-    def __init__(self, startdate, stopdate, session):
-        self.start = startdate
-        self.stop = stopdate
+    def __init__(self, month, session):
+        self.start = month.first
+        self.stop = month.last
         self.session = session
+        self._month = month
+
+    @staticmethod
+    def fname(month):
+        name = "month" + str(month.id)
+        return os.path.join(ADJ_DIR, name)
 
     @lazyprop
     def relevant_bugs(self):
@@ -70,7 +77,8 @@ class AdjacencyMatrix(object):
         filter(self.start <= BugEvent.date).\
         filter(BugEvent.date <= self.stop).count()
 
-    def save(self, f):
+    def save(self):
+        f = open(self.fname(self._month))
         writer = UnicodeWriter(f)
         writer.writerow([''] + map(unicode, self.relevant_debuggers) )
 
@@ -80,3 +88,5 @@ class AdjacencyMatrix(object):
             for b in self.relevant_debuggers:
                 row.append(unicode(self.get(a, b)))
             writer.writerow(row)
+
+        f.close()

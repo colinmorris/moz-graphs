@@ -20,6 +20,7 @@ from bugstate import BugState
 from bug_events import BugEvent
 from models import Chat
 import datetime
+from mozgraph import MozGraph, MozIRCGraph
 
 MONTHDELTA = datetime.timedelta(days=28)
 
@@ -80,6 +81,10 @@ class BugMonth(Base):
     assignee_nirc_received_past_cumulative = Column(Integer)
 
     # TODO: Graph stuff related to assignee
+    # e.g.
+
+    assignee_constraint_prior_month = Column(Float) # TODO: Is this a float or int?
+    # etc.
 
 
     # __BUG'S DEBUGGERS__
@@ -215,6 +220,7 @@ def enrich_assignee(session):
             bm.assignee_nirc_links_past_cumulative / bm._age_in_months
 
 def enrich_assignee_graph(session):
+    # TODO: This is just a skeleton with one example call. (It may or may not work as written.)
     """
     for each month:
         get the graph for that month
@@ -222,7 +228,12 @@ def enrich_assignee_graph(session):
             get the variables related to that bug's assignee wrt the current graph
             and save them
     """
-    pass
+    for month in session.query(Month):
+        irc_graph = MozIRCGraph(session)
+        for bug in session.query(Bug).filter("Bug.reported <= month.first"): # Todo: Is month even in scope here?
+            bm = session.query(BugMonth).filter_by(month=month, bug=bug).first()
+            assignee_node = irc_graph.get_vertex(bm.assignee)
+            bm.assignee_constraint_prior_month = assignee_node.constraint()
 
 
 def priormonth(query, currmonth, cls):

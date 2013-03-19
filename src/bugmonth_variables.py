@@ -229,7 +229,7 @@ def enrich_assignee_graph(session):
             and save them
     """
     for month in session.query(Month):
-        irc_graph = MozIRCGraph(session)
+        irc_graph_last_month = MozIRCGraph(session)
         for bug in session.query(Bug).filter("Bug.reported <= month.first"): # Todo: Is month even in scope here?
             bm = session.query(BugMonth).filter_by(month=month, bug=bug).first()
             assignee_node = irc_graph.get_vertex(bm.assignee)

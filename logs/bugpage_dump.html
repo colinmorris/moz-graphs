@@ -1,0 +1,1276 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en"><head><meta content="website" property="og:type"/><meta content="https://bugzilla.mozilla.org/extensions/OpenGraph/web/bugzilla.png" property="og:image"/><meta content="35 &ndash; (firstBug) Navigator does not free preference hash table when exit." property="og:title"/><meta content="https://bugzilla.mozilla.org/show_bug.cgi?id=35" property="og:url"/><title>35 – (firstBug) Navigator does not free preference hash table when exit.</title><meta content="text/html; charset=utf-8" http-equiv="Content-Type"/><link href="https://bugzilla.mozilla.org/" rel="Top"/><link href="showdependencytree.cgi?id=35&amp;hide_resolved=1" rel="Show" title="Dependency Tree"/><link href="showdependencygraph.cgi?id=35" rel="Show" title="Dependency Graph"/><link href="show_activity.cgi?id=35" rel="Show" title="Bug Activity"/><link href="show_bug.cgi?format=multiple&amp;id=35" rel="Show" title="Printer-Friendly Version"/><link href="buglist.cgi?bug_status=UNCONFIRMED&amp;bug_status=NEW&amp;bug_status=ASSIGNED&amp;bug_status=REOPENED&amp;emailassigned_to1=1&amp;emailreporter1=1&amp;emailtype1=exact&amp;email1=colin.morris2%40gmail.com&amp;field0-0-0=bug_status&amp;type0-0-0=notequals&amp;value0-0-0=UNCONFIRMED&amp;field0-0-1=reporter&amp;type0-0-1=equals&amp;value0-0-1=colin.morris2%40gmail.com" rel="Saved Searches" title="My Bugs"/><link href="skins/standard/global.css?1361965969" rel="alternate stylesheet" title="Classic"/><link href="js/yui/assets/skins/sam/autocomplete.css?1361965969" rel="stylesheet" type="text/css"/><link href="js/yui/assets/skins/sam/calendar.css?1361965969" rel="stylesheet" type="text/css"/><link href="skins/standard/global.css?1361965969" rel="stylesheet" type="text/css"/><link href="skins/standard/show_bug.css?1361965969" rel="stylesheet" type="text/css"/><link href="skins/custom/bug_groups.css?1361965969" rel="stylesheet" type="text/css"/><link href="extensions/BMO/web/styles/edit_bug.css?1361965969" rel="stylesheet" type="text/css"/><link href="extensions/InlineHistory/web/style.css?1361965969" rel="stylesheet" type="text/css"/><link href="extensions/Voting/web/style.css?1361965969" rel="stylesheet" type="text/css"/><!--[if lte IE 7]>
+      
+
+
+  <link href="skins/standard/IE-fixes.css?1361965969" rel="stylesheet"
+        type="text/css" >
+<![endif]--><link href="skins/contrib/Dusk/global.css?1361965969" rel="stylesheet" title="Dusk" type="text/css"/><link href="skins/custom/global.css?1361965969" rel="stylesheet" type="text/css"/><link href="skins/custom/show_bug.css?1361965969" rel="stylesheet" type="text/css"/><!--[if lte IE 7]>
+      
+
+
+  <link href="skins/custom/IE-fixes.css?1361965969" rel="stylesheet"
+        type="text/css" >
+<![endif]--><script src="js/yui/yahoo-dom-event/yahoo-dom-event.js?1361965969" type="text/javascript"></script><script src="js/yui/cookie/cookie-min.js?1361965969" type="text/javascript"></script><script src="js/yui3/yui/yui-min.js?1361965969" type="text/javascript"></script><script src="js/yui/datasource/datasource-min.js?1361965969" type="text/javascript"></script><script src="js/yui/connection/connection-min.js?1361965969" type="text/javascript"></script><script src="js/yui/json/json-min.js?1361965969" type="text/javascript"></script><script src="js/yui/autocomplete/autocomplete-min.js?1361965969" type="text/javascript"></script><script src="js/yui/calendar/calendar-min.js?1361965969" type="text/javascript"></script><script src="js/global.js?1361965969" type="text/javascript"></script><script type="text/javascript">
+    &lt;!--
+        YAHOO.namespace('bugzilla');
+        YAHOO.util.Event.addListener = function (el, sType, fn, obj, overrideContext) {
+               if ( ("onpagehide" in window || YAHOO.env.ua.gecko) &amp;&amp; sType === "unload") { sType = "pagehide"; };
+               var capture = ((sType == "focusin" || sType == "focusout") &amp;&amp; !YAHOO.env.ua.ie) ? true : false;
+               return this._addListener(el, this._getType(sType), fn, obj, overrideContext, capture);
+         };
+        if ( "onpagehide" in window || YAHOO.env.ua.gecko) {
+            YAHOO.util.Event._simpleRemove(window, "unload", 
+                                           YAHOO.util.Event._unload);
+        }
+        
+        function unhide_language_selector() { 
+            YAHOO.util.Dom.removeClass(
+                'lang_links_container', 'bz_default_hidden'
+            ); 
+        } 
+        YAHOO.util.Event.onDOMReady(unhide_language_selector);
+
+        
+        var BUGZILLA = {
+            param: {
+                cookiepath: '\/',
+                maxusermatches: 100
+            },
+            constant: {
+                COMMENT_COLS: 80
+            },
+            string: {
+                
+
+                attach_desc_required:
+                    'You must enter a Description for this attachment.',
+                component_required:
+                    'You must select a Component for this bug.',
+                description_required:
+                    'You must enter a Description for this bug.',
+                short_desc_required:
+                    'You must enter a Summary for this bug.',
+                version_required:
+                    'You must select a Version for this bug.'
+            }
+        };
+
+    if (history &amp;&amp; history.replaceState) {
+      if(!document.location.href.match(/show_bug\.cgi/)) {
+        history.replaceState( null,
+                             "Bug 35 – (firstBug) Navigator does not free preference hash table when exit.",
+                             "show_bug.cgi?id=35" );
+        document.title = "Bug 35 – (firstBug) Navigator does not free preference hash table when exit.";
+      }
+      if (document.location.href.match(/show_bug\.cgi\?.*list_id=/)) {
+        var href = document.location.href;
+        href = href.replace(/[\?&amp;]+list_id=(\d+|cookie)/, '');
+        history.replaceState(null, "Bug 35 – (firstBug) Navigator does not free preference hash table when exit.", href);
+      }
+    }
+    YAHOO.util.Event.onDOMReady(function() {
+      initDirtyFieldTracking();
+    });document.title = document.title.replace(/^Bug /, '');
+    // --&gt;
+    </script><script src="js/util.js?1361965969" type="text/javascript"></script><script src="js/field.js?1361965969" type="text/javascript"></script><script src="extensions/BMO/web/js/edit_bug.js?1361965969" type="text/javascript"></script><script src="extensions/InlineHistory/web/inline-history.js?1361965969" type="text/javascript"></script><link href="./search_plugin.cgi" rel="search" title="Bugzilla@Mozilla" type="application/opensearchdescription+xml"/><link href="extensions/BMO/web/images/favicon.ico" rel="shortcut icon"/><link href="https://bugzil.la/35" id="shorturl" rev="canonical"/><script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-36116321-3']);
+    _gaq.push(['_trackPageview']);
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script><meta content="noarchive" name="robots"/></head><body class="bugzilla-mozilla-org bz_bug bz_status_VERIFIED bz_product_MozillaClassic bz_component_XFE bz_bug_35 yui-skin-sam" onload="">
+<div id="header">
+<div id="banner">
+</div>
+<table border="0" cellpadding="0" cellspacing="0" id="titles">
+<tr>
+<td id="title">
+<p>Bugzilla@Mozilla – Bug 35</p>
+</td>
+<td id="subtitle">
+<p class="subheader">Navigator does not free preference hash table when exit.</p>
+</td>
+<td id="information">
+<p class="header_addl_info">Last modified: 2011-09-13 13:41:41 PDT</p>
+</td>
+</tr>
+</table>
+<table cellpadding="0" cellspacing="0" class="bz_default_hidden" id="lang_links_container"><tr><td>
+</td></tr></table>
+<ul class="links">
+<li><a href="./">Home</a></li>
+<li><span class="separator">| </span><a href="enter_bug.cgi">New</a></li>
+<li><span class="separator">| </span><a href="describecomponents.cgi">Browse</a></li>
+<li><span class="separator">| </span><a href="query.cgi">Search</a></li>
+<li class="form">
+<span class="separator">| </span>
+<form action="buglist.cgi" method="get" onsubmit="if (this.quicksearch.value == '')
+                    { alert('Please enter one or more search terms first.');
+                      return false; } return true;">
+<input class="txt" id="quicksearch_top" name="quicksearch" title="Quick Search" type="text" value=""/>
+<input class="btn" id="find_top" type="submit" value="Search"/></form>
+    [<a href="page.cgi?id=quicksearch.html" title="Quicksearch Help">help</a>]
+  </li>
+<li><span class="separator">| </span><a href="report.cgi">Reports</a></li>
+<li>
+<span class="separator">| </span>
+<a href="request.cgi?requester=colin.morris2%40gmail.com&amp;requestee=colin.morris2%40gmail.com&amp;do_union=1&amp;group=type&amp;action=queue">My Requests</a></li>
+<li><span class="separator"> | </span>
+<a href="https://bugzilla.mozilla.org/page.cgi?id=mydashboard.html">My Dashboard</a></li><li><span class="separator"> | </span><a href="page.cgi?id=productdashboard.html">Product Dashboard</a></li>
+<li><span class="separator">| </span><a href="userprefs.cgi">Preferences</a></li>
+<li>
+<span class="separator">| </span>
+<a href="http://www.bugzilla.org/docs/4.2/en/html/bug_page.html" target="_blank">Help</a>
+</li>
+<li>
+<span class="separator">| </span>
+<a href="index.cgi?logout=1">Log out</a>
+          colin.morris2@gmail.com</li>
+</ul>
+</div>
+<div id="bugzilla-body">
+<div style="background-color:#fff9db;color:#666458;padding:5px">
+Bugzilla has been upgraded to version 4.2.
+Please file any regressions found as blocking <a href="show_bug.cgi?id=848218">Bug 848218</a>.
+</div>
+<div class="navigation">
+<i><font color="#777777">First</font></i>
+<i><font color="#777777">Last</font></i>
+<i><font color="#777777">Prev</font></i>
+<i><font color="#777777">Next</font></i>
+    
+  <i><font color="#777777">This bug is not in your last
+    search results.</font></i>
+</div>
+<script type="text/javascript">
+&lt;!--
+
+  /* Index all classifications so we can keep track of the classification
+   * for the selected product, which could control field visibility.
+   */
+  var all_classifications = new Array(72);
+      all_classifications['MozillaClassic'] = 'Graveyard';
+      all_classifications['Add-on SDK'] = 'Client Software';
+      all_classifications['addons.mozilla.org'] = 'Server Software';
+      all_classifications['Air Mozilla'] = 'Other';
+      all_classifications['AUS'] = 'Server Software';
+      all_classifications['Boot2Gecko'] = 'Client Software';
+      all_classifications['Bugzilla'] = 'Server Software';
+      all_classifications['bugzilla.mozilla.org'] = 'Other';
+      all_classifications['Calendar'] = 'Client Software';
+      all_classifications['Camino'] = 'Client Software';
+      all_classifications['Community Tools'] = 'Other';
+      all_classifications['Composer'] = 'Client Software';
+      all_classifications['Core'] = 'Components';
+      all_classifications['Data Safety'] = 'Other';
+      all_classifications['Datazilla'] = 'Other';
+      all_classifications['Developer Documentation'] = 'Other';
+      all_classifications['Directory'] = 'Components';
+      all_classifications['Extend Firefox'] = 'Other';
+      all_classifications['Fennec'] = 'Client Software';
+      all_classifications['Finance'] = 'Other';
+      all_classifications['Firefox'] = 'Client Software';
+      all_classifications['Firefox Affiliates'] = 'Other';
+      all_classifications['Firefox for Android'] = 'Client Software';
+      all_classifications['Firefox for Metro'] = 'Client Software';
+      all_classifications['Input'] = 'Server Software';
+      all_classifications['JSS'] = 'Components';
+      all_classifications['L20n'] = 'Other';
+      all_classifications['MailNews Core'] = 'Components';
+      all_classifications['Marketing'] = 'Other';
+      all_classifications['Marketplace'] = 'Server Software';
+      all_classifications['Mozilla Communities'] = 'Other';
+      all_classifications['Mozilla Developer Network'] = 'Other';
+      all_classifications['Mozilla Grants'] = 'Other';
+      all_classifications['Mozilla Labs'] = 'Other';
+      all_classifications['Mozilla Localizations'] = 'Client Software';
+      all_classifications['Mozilla Messaging'] = 'Other';
+      all_classifications['Mozilla Metrics'] = 'Other';
+      all_classifications['Mozilla QA'] = 'Other';
+      all_classifications['Mozilla Reps'] = 'Other';
+      all_classifications['Mozilla Services'] = 'Client Software';
+      all_classifications['mozilla.org'] = 'Other';
+      all_classifications['mozillaignite'] = 'Other';
+      all_classifications['NSPR'] = 'Components';
+      all_classifications['NSS'] = 'Components';
+      all_classifications['Other Applications'] = 'Client Software';
+      all_classifications['Other Applications Graveyard'] = 'Graveyard';
+      all_classifications['Pancake'] = 'Other';
+      all_classifications['Penelope'] = 'Client Software';
+      all_classifications['Petri'] = 'Other';
+      all_classifications['Popcorn'] = 'Other';
+      all_classifications['Privacy'] = 'Other';
+      all_classifications['quality.mozilla.org'] = 'Other';
+      all_classifications['Rhino'] = 'Components';
+      all_classifications['SeaMonkey'] = 'Client Software';
+      all_classifications['Skywriter'] = 'Server Software';
+      all_classifications['Snippets'] = 'Other';
+      all_classifications['Socorro'] = 'Server Software';
+      all_classifications['support.mozilla.org'] = 'Other';
+      all_classifications['support.mozillamessaging.com'] = 'Other';
+      all_classifications['Tamarin'] = 'Components';
+      all_classifications['Tech Evangelism'] = 'Other';
+      all_classifications['Testing'] = 'Components';
+      all_classifications['Testopia'] = 'Server Software';
+      all_classifications['Thimble'] = 'Other';
+      all_classifications['Thunderbird'] = 'Client Software';
+      all_classifications['Toolkit'] = 'Components';
+      all_classifications['Tracking'] = 'Other';
+      all_classifications['Web Apps'] = 'Other';
+      all_classifications['webmaker.org'] = 'Other';
+      all_classifications['Websites'] = 'Other';
+      all_classifications['Webtools'] = 'Server Software';
+      all_classifications['www.mozilla.org'] = 'Other';
+//--&gt;
+</script>
+<form action="process_bug.cgi" id="changeform" method="post" name="changeform">
+<input name="delta_ts" type="hidden" value="2011-09-13 13:41:41"/>
+<input name="longdesclength" type="hidden" value="6"/>
+<input name="id" type="hidden" value="35"/>
+<input name="token" type="hidden" value="1363123124-d6c1999d88b71ce4495d861948f897f7"/>
+<div class="bz_alias_short_desc_container edit_form">
+<span class="last_comment_link">
+<a accesskey="l" href="#c5"><b>L</b>ast Comment</a>
+</span>
+<a href="show_bug.cgi?id=35"><b>Bug 35</b></a> -<span class="bz_default_hidden" id="summary_alias_container"> 
+          (<span id="alias_nonedit_display">firstBug</span>) 
+      <span id="short_desc_nonedit_display">Navigator does not free preference hash table when exit.</span>
+</span>
+<div id="summary_alias_input">
+<table id="summary">
+<tr>
+<td colspan="2">(firstBug)
+          </td>
+</tr>
+<tr>
+<td>
+<label accesskey="s" for="short_desc"><u>S</u>ummary</label>:
+          </td>
+<td>Navigator does not free preference hash table when exit.
+          </td>
+</tr>
+</table>
+</div>
+</div>
+<script type="text/javascript">
+    hideAliasAndSummary('Navigator does not free preference hash table when exit.', 'firstBug');
+  </script>
+<table class="edit_form">
+<tr>
+<td class="bz_show_bug_column" id="bz_show_bug_column_1">
+<table>
+<tr>
+<th class="field_label">
+<a href="page.cgi?id=fields.html#status">Status</a>:
+    </th>
+<td id="bz_field_status">
+<span id="static_bug_status">VERIFIED
+          WONTFIX
+      </span>
+</td>
+</tr>
+<tr>
+<th class="field_label">
+<label accesskey="w" for="status_whiteboard"><u>W</u>hiteboard</label>:
+      </th><td colspan="2">
+</td>
+</tr>
+<tr>
+<th class="field_label">
+<label accesskey="k" for="keywords">
+<a href="describekeywords.cgi"><u>K</u>eywords</a></label>:
+      </th>
+<td class="field_value" colspan="2">
+</td>
+</tr>
+<tr>
+<td class="bz_section_spacer" colspan="2"></td>
+</tr>
+<tr><th class="field_label " id="field_label_product">
+<a class="field_help_link" href="describecomponents.cgi" title="Bugs are categorised into Products and Components. Select a Classification to narrow down this list.">Product:</a>
+</th>
+<td class="field_value " id="field_container_product">MozillaClassic</td>
+</tr>
+<tr class="bz_default_hidden"><th class="field_label " id="field_label_classification">
+<a class="field_help_link" href="page.cgi?id=fields.html#classification" title="Bugs are categorised into Classifications, Products and Components. classifications is the top-level categorisation.">Classification:</a>
+</th>
+<td class="field_value " id="field_container_classification">Graveyard</td>
+</tr>
+<tr><th class="field_label " id="field_label_component">
+<a class="field_help_link" href="describecomponents.cgi?product=MozillaClassic" title="Components are second-level categories; each belongs to a particular Product. Select a Product to narrow down this list.">Component:</a>
+</th>
+<td class="field_value " id="field_container_component">XFE</td>
+</tr>
+<tr>
+<th class="field_label">
+<label for="version">Version</label>:
+      </th>
+<td>1998-03-31
+  </td>
+</tr>
+<tr>
+<th class="field_label">
+<label accesskey="h" for="rep_platform">Platform</label>:
+      </th>
+<td class="field_value">Sun
+       Solaris
+      </td>
+</tr>
+<tr>
+<td class="bz_section_spacer" colspan="2"></td>
+</tr>
+<tr>
+<th class="field_label">
+<label accesskey="i" for="priority">
+<a href="page.cgi?id=fields.html#importance"><u>I</u>mportance</a></label>:
+      </th>
+<td>P3
+       minor
+      </td>
+</tr>
+<tr>
+<th class="field_label">
+<label for="target_milestone">
+<a href="page.cgi?id=fields.html#target_milestone">
+            Target Milestone</a></label>:
+        </th><td>---
+  </td>
+</tr>
+<tr>
+<th class="field_label">
+<a href="page.cgi?id=fields.html#assigned_to">Assigned To</a>:
+      </th>
+<td><span class="vcard"><a class="email" href="mailto:mcafee@mocha.com" title="Chris McAfee &lt;mcafee@mocha.com&gt;"> <span class="fn">Chris McAfee</span></a>
+</span>
+</td>
+</tr>
+<tr>
+<th class="field_label">
+<label accesskey="q" for="qa_contact"><u>Q</u>A Contact</label>:
+      </th>
+<td><span class="vcard"><a class="email" href="mailto:" title=""></a>
+</span>
+</td>
+</tr>
+<script type="text/javascript">
+      assignToDefaultOnChange(['product', 'component'],
+        'ramiro\x40formerly-netscape.com.tld',
+        'ramiro\x40formerly-netscape.com.tld');
+    </script>
+<tr>
+<td class="bz_section_spacer" colspan="2"></td>
+</tr>
+<tr><th class="field_label " id="field_label_bug_file_loc">
+<label accesskey="u" for="bug_file_loc">
+<a class="field_help_link" href="page.cgi?id=fields.html#bug_file_loc" title="Bugs can have a URL associated with them - for example, a pointer to a web site where the problem is seen.">URL:</a>
+</label>
+</th>
+<td>
+<span id="bz_url_input_area">
+</span>
+</td>
+</tr>
+<tr>
+<td class="bz_section_spacer" colspan="2"></td>
+</tr>
+<tr><th class="field_label " id="field_label_dependson">
+<a class="field_help_link" href="page.cgi?id=fields.html#dependson" title="The bugs listed here must be resolved before this bug can be resolved.">Depends on:</a>
+</th>
+<td>
+<span id="dependson_input_area">
+</span>
+</td>
+</tr>
+<tr><th class="field_label " id="field_label_blocked">
+<a class="field_help_link" href="page.cgi?id=fields.html#blocked" title="This bug must be resolved before the bugs listed in this field can be resolved.">Blocks:</a>
+</th>
+<td>
+<span id="blocked_input_area">
+</span>
+</td>
+</tr><tr>
+<th> </th>
+<td align="left" colspan="2" id="show_dependency_tree_or_graph">
+      Show dependency <a href="showdependencytree.cgi?id=35&amp;hide_resolved=1">tree</a>
+  
+        / <a href="showdependencygraph.cgi?id=35">graph</a>
+</td>
+</tr>
+<tr>
+<td colspan="2">
+<span style="float:left">
+<a href="page.cgi?id=fields.html">What do these fields mean?</a>
+</span><div class="knob-buttons">
+<input id="commit_top" type="submit" value="Save Changes"/>
+</div>
+</td>
+</tr>
+</table>
+</td>
+<td>
+<div class="bz_column_spacer"> </div>
+</td>
+<td class="bz_show_bug_column_table" id="bz_show_bug_column_2" valign="top">
+<table cellpadding="3" cellspacing="1">
+<tr>
+<th class="field_label">
+      Reported:
+    </th>
+<td>1998-04-07 01:37 PDT by <span class="vcard"><a class="email" href="mailto:weitsang@cs.cornell.edu" title="weitsang@cs.cornell.edu">weitsang@cs.cornell.edu</a>
+</span>
+</td>
+</tr>
+<tr>
+<th class="field_label">
+      Modified:
+    </th>
+<td>2011-09-13 13:41 PDT 
+      (<a href="show_activity.cgi?id=35">History</a>)
+    </td>
+</tr>
+<tr>
+<th class="field_label">
+<label accesskey="a" for="newcc">CC List:</label>
+</th>
+<td>
+<input checked="checked" id="addselfcc" name="addselfcc" type="checkbox"/>
+<label for="addselfcc">Add me to CC list</label>
+<br/> 2 
+          users
+          <span class="bz_default_hidden" id="cc_edit_area_showhide_container">
+            (<a href="#" id="cc_edit_area_showhide">edit</a>)
+            <br/>
+<ul class="cc_list_display">
+<li>tymerkaev@gmail.com</li>
+<li>wlevine@gmail.com</li>
+</ul>
+</span>
+<div id="cc_edit_area">
+<div>
+<div><label for="cc"><b>Add</b></label></div><div class="bz_userfield" id="newcc_autocomplete">
+<input class="bz_userfield" id="newcc" name="newcc" size="30" value=""/>
+<div id="newcc_autocomplete_container"></div>
+</div>
+<script type="text/javascript">
+      if( typeof(YAHOO.bugzilla.userAutocomplete) !== 'undefined' 
+          &amp;&amp; YAHOO.bugzilla.userAutocomplete != null){
+        YAHOO.bugzilla.userAutocomplete.init( "newcc", 
+                    "newcc_autocomplete_container", true);        
+      }
+    </script>
+</div>
+<select id="cc" multiple="multiple" size="5">
+<option value="tymerkaev@gmail.com">tymerkaev@gmail.com</option>
+<option value="wlevine@gmail.com">wlevine@gmail.com</option>
+</select>
+<input name="cc" type="hidden" value="colin.morris2@gmail.com"/>
+</div>
+<script type="text/javascript">
+            hideEditableField( 'cc_edit_area_showhide_container', 
+                               'cc_edit_area', 
+                               'cc_edit_area_showhide', 
+                               '', 
+                               '');  
+          </script>
+</td>
+</tr>
+<tr>
+<td class="bz_section_spacer" colspan="2"></td>
+</tr>
+<tr>
+<th class="field_label">
+<label>Flags:</label>
+</th>
+<td><script src="js/flag.js?1361965969" type="text/javascript"></script>
+<table id="flags">
+<tbody class="bz_flag_type">
+<tr>
+<td>
+</td>
+<td>
+<label for="flag_type-800" title="Set this flag when the bug is in need of additional information.">needinfo</label>
+</td>
+<td>
+<input id="flag_type-800_dirty" type="hidden"/>
+<select class="flag_select flag_type-800" id="flag_type-800" name="flag_type-800" onchange="toggleRequesteeField(this);" title="Set this flag when the bug is in need of additional information.">
+<option value="X"></option>
+<option value="?">?</option>
+<option value="+">+</option>
+<option value="-">-</option>
+</select>
+</td>
+<td>
+<span style="white-space: nowrap;"><div class="requestee" id="requestee_type-800_autocomplete">
+<input class="requestee" id="requestee_type-800" name="requestee_type-800" value=""/>
+<div id="requestee_type-800_autocomplete_container"></div>
+</div>
+<script type="text/javascript">
+      if( typeof(YAHOO.bugzilla.userAutocomplete) !== 'undefined' 
+          &amp;&amp; YAHOO.bugzilla.userAutocomplete != null){
+        YAHOO.bugzilla.userAutocomplete.init( "requestee_type-800", 
+                    "requestee_type-800_autocomplete_container", true);        
+      }
+    </script>
+</span>
+</td>
+</tr>
+</tbody>
+<tbody class="bz_flag_type">
+<tr>
+<td>
+</td>
+<td>
+<label for="flag_type-791" title="Used to ask the security team to look over a feature or bug.">sec‑review</label>
+</td>
+<td>
+<input id="flag_type-791_dirty" type="hidden"/>
+<select class="flag_select flag_type-791" id="flag_type-791" name="flag_type-791" onchange="toggleRequesteeField(this);" title="Used to ask the security team to look over a feature or bug.">
+<option value="X"></option>
+<option value="?">?</option>
+</select>
+</td>
+<td>
+<span style="white-space: nowrap;"><div class="requestee" id="requestee_type-791_autocomplete">
+<input class="requestee" id="requestee_type-791" name="requestee_type-791" value=""/>
+<div id="requestee_type-791_autocomplete_container"></div>
+</div>
+<script type="text/javascript">
+      if( typeof(YAHOO.bugzilla.userAutocomplete) !== 'undefined' 
+          &amp;&amp; YAHOO.bugzilla.userAutocomplete != null){
+        YAHOO.bugzilla.userAutocomplete.init( "requestee_type-791", 
+                    "requestee_type-791_autocomplete_container");        
+      }
+    </script>
+</span>
+</td>
+</tr>
+</tbody>
+<tbody class="bz_flag_type">
+<tr>
+<td>
+</td>
+<td>
+<label for="flag_type-803" title="Flag is used to track security bug bounty nominations. Mail security(at)mozilla.org to nominate a bug.">sec‑bounty</label>
+</td>
+<td>
+<input id="flag_type-803_dirty" type="hidden"/>
+<select class="flag_select flag_type-803" disabled="disabled" id="flag_type-803" name="flag_type-803" onchange="toggleRequesteeField(this);" title="Flag is used to track security bug bounty nominations. Mail security(at)mozilla.org to nominate a bug.">
+<option value="X"></option>
+</select>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+<span class="bz_default_hidden" id="bz_flags_more_container"><em>None yet set</em>
+            (<a href="#" id="bz_flags_more_action">set flags</a>)
+          </span>
+<script type="text/javascript">
+            YAHOO.util.Dom.removeClass('bz_flags_more_container', 'bz_default_hidden');
+            var table = YAHOO.util.Dom.get("flags");
+            var rows = YAHOO.util.Dom.getElementsByClassName('bz_flag_type', 'tbody', table);
+            for (var i = 0; i &lt; rows.length; i++) {
+                YAHOO.util.Dom.addClass(rows[i], 'bz_default_hidden');
+            }
+            YAHOO.util.Event.addListener('bz_flags_more_action', 'click', function (e) {
+                YAHOO.util.Dom.addClass('bz_flags_more_container', 'bz_default_hidden');
+                for (var i = 0; i &lt; rows.length; i++) {
+                    YAHOO.util.Dom.removeClass(rows[i], 'bz_default_hidden');
+                }
+                YAHOO.util.Event.preventDefault(e);
+            }); 
+          </script>
+</td>
+</tr>
+<tr><th class="field_label " id="field_label_see_also">
+<a class="field_help_link" href="page.cgi?id=fields.html#see_also" title="This allows you to refer to bugs in other installations. You can enter a URL to a bug in the 'Add Bug URLs' field to note that that bug is related to this one. You can enter multiple URLs at once by separating them with a comma. You should normally use this field to refer to bugs in other installations. For bugs in this installation, it is better to use the Depends on and Blocks fields.">See Also:</a>
+</th>
+<td class="field_value " id="field_container_see_also"></td>
+</tr>
+<tr>
+<td class="bz_section_spacer" colspan="2"></td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td colspan="3">
+<hr id="bz_top_half_spacer"/>
+</td>
+</tr>
+</table>
+<table cellpadding="0" cellspacing="0" id="bz_big_form_parts"><tr>
+<td>
+<script type="text/javascript">
+&lt;!--
+function toggle_display(link) {
+    var table = document.getElementById("attachment_table");
+    var view_all = document.getElementById("view_all");
+    var hide_obsolete_url_parameter = "&amp;hide_obsolete=1";
+    // Store current height for scrolling later
+    var originalHeight = table.offsetHeight;
+    var rows = YAHOO.util.Dom.getElementsByClassName(
+        'bz_tr_obsolete', 'tr', table);
+
+    for (var i = 0; i &lt; rows.length; i++) {
+        bz_toggleClass(rows[i], 'bz_default_hidden');
+    }
+
+    if (YAHOO.util.Dom.hasClass(rows[0], 'bz_default_hidden')) {
+        link.innerHTML = "Show Obsolete";
+        view_all.href = view_all.href + hide_obsolete_url_parameter 
+    }
+    else {
+        link.innerHTML = "Hide Obsolete";
+        view_all.href = view_all.href.replace(hide_obsolete_url_parameter,"");
+    }
+
+    var newHeight = table.offsetHeight;
+    // This scrolling makes the window appear to not move at all.
+    window.scrollBy(0, newHeight - originalHeight);
+
+    return false;
+}
+//--&gt;
+</script>
+<br/>
+<table cellpadding="4" cellspacing="0" id="attachment_table">
+<tr id="a0">
+<th align="left" colspan="3">
+      Attachments
+    </th>
+</tr>
+<tr class="bz_attach_footer">
+<td colspan="3">
+<a href="attachment.cgi?bugid=35&amp;action=enter">Add an attachment</a>
+        (proposed patch, testcase, etc.)
+    </td>
+</tr>
+</table>
+<br/>
+<div id="comment_top_hat">
+<script type="text/javascript">
+    function summonCommentBox() {
+        var commentbox = document.getElementById('add_comment');
+        document.getElementById('comment_top_hat').appendChild(commentbox);
+        document.getElementById('wave_wand').style.display = 'none';
+    }
+  </script>
+<p id="wave_wand">
+<a href="javascript:summonCommentBox()"><i>Summon comment box</i></a>
+</p>
+</div>
+</td>
+<td>
+</td>
+</tr></table>
+<div id="comments"><script src="js/comments.js?1361965969" type="text/javascript">
+</script>
+<script type="text/javascript">
+&lt;!--
+  /* Adds the reply text to the 'comment' textarea */
+  function replyToComment(id, real_id, name) {
+      var prefix = "(In reply to " + name + " from comment #" + id + ")\n";
+      var replytext = "";
+        /* pre id="comment_name_N" */
+        var text_elem = document.getElementById('comment_text_'+id);
+        var text = getText(text_elem);
+        replytext = prefix + wrapReplyText(text);
+
+
+      /* Remove embedded links to attachment details */
+      replytext = replytext.replace(/(attachment\s+\d+)(\s+\[[^\[\n]+\])+/gi, '$1');
+
+      /* &lt;textarea id="comment"&gt; */
+      var textarea = document.getElementById('comment');
+      if (textarea.value != replytext) {
+          textarea.value += replytext;
+      }
+
+      textarea.focus();
+  }
+
+  function toggleCommentWrap(a, id) {
+    var spans = document.getElementById('comment_text_' + id).getElementsByTagName('span');
+    var old_class;
+    var new_class;
+    if (a.innerHTML == 'wrap') {
+      a.innerHTML = 'unwrap';
+      old_class = 'quote';
+      new_class = 'quote_wrapped';
+    } else {
+      a.innerHTML = 'wrap';
+      old_class = 'quote_wrapped';
+      new_class = 'quote';
+    }
+    for (var i = 0, l = spans.length; i &lt; l; i++) {
+      if (spans[i].className == old_class)
+        spans[i].className = new_class;
+    }
+    return false;
+  }
+//--&gt;
+</script>
+<script>
+  var tbpl_comment_ids = new Array();
+</script><link href="extensions/TagNewUsers/web/style.css?1361965969" rel="stylesheet" type="text/css"/>
+<!-- This auto-sizes the comments and positions the collapse/expand links 
+     to the right. -->
+<table cellpadding="0" cellspacing="0" class="bz_comment_table"><tr>
+<td>
+<div class="bz_comment bz_first_comment" id="c0">
+<div class="bz_first_comment_head">
+<span class="bz_comment_actions">
+              [<a class="bz_reply_link" href="#add_comment" onclick="replyToComment('0', '1', 'weitsang'); return false;">reply</a>]
+            <script type="text/javascript">&lt;!--
+              addCollapseLink(0, 'Toggle comment display'); // --&gt;
+            </script>
+</span>
+<span class="bz_comment_number">
+<a href="show_bug.cgi?id=35#c0">Description</a>
+</span>
+<span class="bz_comment_user">
+<span class="vcard"><a class="email" href="mailto:weitsang@cs.cornell.edu" title="weitsang@cs.cornell.edu">weitsang@cs.cornell.edu</a>
+</span>
+</span>
+<span class="bz_comment_user_images">
+</span>
+<span class="bz_comment_time">
+          1998-04-07 01:37:03 PDT
+        </span>
+</div>
+<pre class="bz_comment_text" id="comment_text_0">Created by   (<a href="mailto:weitsang@cs.cornell.edu">weitsang@cs.cornell.edu</a>) on Monday, April 6, 1998 6:37:03 PM PDT
+Additional Details :
+PREF_Cleanup is not called when Navigator exits
+(File-&gt;Exit), causing memory leaks.
+Updated by Sarah Wilson (<a href="mailto:swilson@netscape.com">swilson@netscape.com</a>) on Tuesday, April 7, 1998 6:48:16 PM PDT
+Updated by Sarah Wilson (<a href="mailto:swilson@netscape.com">swilson@netscape.com</a>) on Tuesday, April 7, 1998 6:49:27 PM PDT</pre>
+</div>
+<div class="bz_comment" id="c1">
+<div class="bz_comment_head">
+<span class="bz_comment_actions">
+              [<a class="bz_reply_link" href="#add_comment" onclick="replyToComment('1', '2', 'Chris McAfee'); return false;">reply</a>]
+            <script type="text/javascript">&lt;!--
+              addCollapseLink(1, 'Toggle comment display'); // --&gt;
+            </script>
+</span>
+<span class="bz_comment_number">
+<a href="show_bug.cgi?id=35#c1">Comment 1</a>
+</span>
+<span class="bz_comment_user">
+<span class="vcard"><a class="email" href="mailto:mcafee@mocha.com" title="Chris McAfee &lt;mcafee@mocha.com&gt;"> <span class="fn">Chris McAfee</span></a>
+</span>
+</span>
+<span class="bz_comment_user_images">
+</span>
+<span class="bz_comment_time">
+          1998-09-28 23:05:59 PDT
+        </span>
+</div>
+<pre class="bz_comment_text" id="comment_text_1">leaks on exit are low priority; yes we should fix this.</pre>
+</div>
+<div class="bz_comment" id="c2">
+<div class="bz_comment_head">
+<span class="bz_comment_actions">
+              [<a class="bz_reply_link" href="#add_comment" onclick="replyToComment('2', '3', 'Chris McAfee'); return false;">reply</a>]
+            <script type="text/javascript">&lt;!--
+              addCollapseLink(2, 'Toggle comment display'); // --&gt;
+            </script>
+</span>
+<span class="bz_comment_number">
+<a href="show_bug.cgi?id=35#c2">Comment 2</a>
+</span>
+<span class="bz_comment_user">
+<span class="vcard"><a class="email" href="mailto:mcafee@mocha.com" title="Chris McAfee &lt;mcafee@mocha.com&gt;"> <span class="fn">Chris McAfee</span></a>
+</span>
+</span>
+<span class="bz_comment_user_images">
+</span>
+<span class="bz_comment_time">
+          1998-12-12 09:06:59 PST
+        </span>
+</div>
+<pre class="bz_comment_text" id="comment_text_2">N/A in new world.</pre>
+</div>
+<div class="bz_comment" id="c3">
+<div class="bz_comment_head">
+<span class="bz_comment_actions">
+              [<a class="bz_reply_link" href="#add_comment" onclick="replyToComment('3', '4', 'leger'); return false;">reply</a>]
+            <script type="text/javascript">&lt;!--
+              addCollapseLink(3, 'Toggle comment display'); // --&gt;
+            </script>
+</span>
+<span class="bz_comment_number">
+<a href="show_bug.cgi?id=35#c3">Comment 3</a>
+</span>
+<span class="bz_comment_user">
+<span class="vcard"><a class="email" href="mailto:leger@formerly-netscape.com.tld" title="leger@formerly-netscape.com.tld">leger@formerly-netscape.com.tld</a>
+</span>
+</span>
+<span class="bz_comment_user_images">
+</span>
+<span class="bz_comment_time">
+          1999-02-26 12:55:59 PST
+        </span>
+</div>
+<pre class="bz_comment_text" id="comment_text_3">Marking Verified/Won't Fix</pre>
+</div>
+<div class="bz_comment" id="c4">
+<div class="bz_comment_head">
+<span class="bz_comment_actions">
+              [<a class="bz_reply_link" href="#add_comment" onclick="replyToComment('4', '1388133', 'Lee'); return false;">reply</a>]
+            <script type="text/javascript">&lt;!--
+              addCollapseLink(4, 'Toggle comment display'); // --&gt;
+            </script>
+</span>
+<span class="bz_comment_number">
+<a href="show_bug.cgi?id=35#c4">Comment 4</a>
+</span>
+<span class="bz_comment_user">
+<span class="vcard"><a class="email" href="mailto:Lee.Jnk@gmail.com" title="Lee &lt;Lee.Jnk@gmail.com&gt;"> <span class="fn">Lee</span></a>
+</span>
+</span>
+<span class="bz_comment_user_images">
+</span>
+<span class="bz_comment_time">
+          2002-06-08 13:22:21 PDT
+        </span>
+</div>
+<pre class="bz_comment_text" id="comment_text_4">Not at all related to this bug.
+
+Which is the first ever bug to be submited at bugzilla ?.
+Where is bug no 1 ?.
+Is there a bug earlier than this one ?.
+Just for Trivia sake</pre>
+</div>
+<div class="bz_comment" id="c5">
+<div class="bz_comment_head">
+<span class="bz_comment_actions">
+              [<a class="bz_wrap_link" href="#" onclick="return toggleCommentWrap(this, 5)">wrap</a>]
+              [<a class="bz_reply_link" href="#add_comment" onclick="replyToComment('5', '2264071', 'daniel'); return false;">reply</a>]
+            <script type="text/javascript">&lt;!--
+              addCollapseLink(5, 'Toggle comment display'); // --&gt;
+            </script>
+</span>
+<span class="bz_comment_number">
+<a href="show_bug.cgi?id=35#c5">Comment 5</a>
+</span>
+<span class="bz_comment_user">
+<span class="vcard"><a class="email" href="mailto:dan-shk@bezeqint.net" title="daniel &lt;dan-shk@bezeqint.net&gt;"> <span class="fn">daniel</span></a>
+</span>
+</span>
+<span class="bz_comment_user_images">
+</span>
+<span class="bz_comment_time">
+          2004-09-18 02:02:47 PDT
+        </span>
+</div>
+<pre class="bz_comment_text" id="comment_text_5">(In reply to <a href="show_bug.cgi?id=35#c4">comment #4</a>)
+<span class="quote">&gt; Not at all related to this bug.
+&gt; 
+&gt; Which is the first ever bug to be submited at bugzilla ?.
+&gt; Where is bug no 1 ?.
+&gt; Is there a bug earlier than this one ?.
+&gt; Just for Trivia sake</span>
+
+I think that this is the first ever bug here.
+respect!
+
+Dan-Shk</pre>
+</div>
+<div id="inline-history-ext"></div>
+<script>
+  var ih_activity = new Array();
+  var ih_activity_flags = new Array();
+  var ih_activity_sort_order = 'oldest_to_newest';
+    var html = '';
+
+      
+
+      
+
+      
+
+      
+          
+          html += 'Component: ';html += 'Platform: Rhapsody';
+            html += ' &rarr; ';html += 'XFE';
+
+
+
+    var item = new Array(7);
+    item[0] = 'mcafee\x40mocha.com';
+    item[1] = '1998-09-28 23:05:20 PDT';
+    item[2] = html;
+    item[3] = '&lt;div class="bz_comment_head"&gt;'
+              + '&lt;span class="bz_comment_user"&gt;'
+              + '\x3cspan class=\"vcard\"\x3e\x3ca class=\"email\" href=\"mailto:mcafee&#64;mocha.com\" title=\"Chris McAfee &lt;mcafee&#64;mocha.com&gt;\"\x3e \x3cspan class=\"fn\"\x3eChris McAfee\x3c\/span\x3e\x3c\/a\x3e\n\x3c\/span\x3e'
+              + '&lt;/span&gt;'
+              + '&lt;span class="bz_comment_time"&gt; ' + item[1] + ' &lt;/span&gt;'
+              + '&lt;/div&gt;';
+    item[4] = false;
+    item[5] = 0;
+    item[6] = false;
+    ih_activity[0] = item;
+    var html = '';
+
+      
+
+      
+
+      
+
+      
+          
+          html += 'Status: ';html += 'NEW';
+            html += ' &rarr; ';html += 'RESOLVED';html += '&lt;br&gt;';
+
+      
+
+      
+
+      
+
+      
+          
+          html += 'Resolution: ';html += '---';
+            html += ' &rarr; ';html += 'WONTFIX';html += '&lt;br&gt;';
+
+      
+
+      
+
+      
+
+      
+          
+          html += 'Last Resolved: ';html += '1998-12-12 09:06:46';
+
+
+
+    var item = new Array(7);
+    item[0] = 'mcafee\x40mocha.com';
+    item[1] = '1998-12-12 09:06:46 PST';
+    item[2] = html;
+    item[3] = '&lt;div class="bz_comment_head"&gt;'
+              + '&lt;span class="bz_comment_user"&gt;'
+              + '\x3cspan class=\"vcard\"\x3e\x3ca class=\"email\" href=\"mailto:mcafee&#64;mocha.com\" title=\"Chris McAfee &lt;mcafee&#64;mocha.com&gt;\"\x3e \x3cspan class=\"fn\"\x3eChris McAfee\x3c\/span\x3e\x3c\/a\x3e\n\x3c\/span\x3e'
+              + '&lt;/span&gt;'
+              + '&lt;span class="bz_comment_time"&gt; ' + item[1] + ' &lt;/span&gt;'
+              + '&lt;/div&gt;';
+    item[4] = false;
+    item[5] = 0;
+    item[6] = false;
+    ih_activity[1] = item;
+    var html = '';
+
+      
+
+      
+
+      
+
+      
+          
+          html += 'Status: ';html += 'RESOLVED';
+            html += ' &rarr; ';html += 'VERIFIED';
+
+
+
+    var item = new Array(7);
+    item[0] = 'leger\x40formerly-netscape.com.tld';
+    item[1] = '1999-02-26 12:55:50 PST';
+    item[2] = html;
+    item[3] = '&lt;div class="bz_comment_head"&gt;'
+              + '&lt;span class="bz_comment_user"&gt;'
+              + '\x3cspan class=\"vcard\"\x3e\x3ca class=\"email\" href=\"mailto:leger&#64;formerly-netscape.com.tld\" title=\"leger&#64;formerly-netscape.com.tld\"\x3eleger&#64;formerly-netscape.com.tld\x3c\/a\x3e\n\x3c\/span\x3e'
+              + '&lt;/span&gt;'
+              + '&lt;span class="bz_comment_time"&gt; ' + item[1] + ' &lt;/span&gt;'
+              + '&lt;/div&gt;';
+    item[4] = false;
+    item[5] = 0;
+    item[6] = false;
+    ih_activity[2] = item;
+    var html = '';
+
+      
+
+      
+        html += '&lt;span class="ih_cc"&gt;';
+
+      
+
+      
+          
+          html += 'CC: ';html += 'wlevine\x40gmail.com';
+
+        html += '&lt;/span&gt;';
+
+
+    var item = new Array(7);
+    item[0] = 'wlevine\x40gmail.com';
+    item[1] = '2004-06-29 19:37:03 PDT';
+    item[2] = html;
+    item[3] = '&lt;div class="bz_comment_head"&gt;'
+              + '&lt;span class="bz_comment_user"&gt;'
+              + '\x3cspan class=\"vcard\"\x3e\x3ca class=\"email\" href=\"mailto:wlevine&#64;gmail.com\" title=\"Will Levine &lt;wlevine&#64;gmail.com&gt;\"\x3e \x3cspan class=\"fn\"\x3eWill Levine\x3c\/span\x3e\x3c\/a\x3e\n\x3c\/span\x3e'
+              + '&lt;/span&gt;'
+              + '&lt;span class="bz_comment_time"&gt; ' + item[1] + ' &lt;/span&gt;'
+              + '&lt;/div&gt;';
+    item[4] = true;
+    item[5] = 0;
+    item[6] = false;
+    ih_activity[3] = item;
+    var html = '';
+
+      
+
+      
+
+      
+
+      
+          
+          html += 'Alias: ';html += 'firstBug';
+
+
+
+    var item = new Array(7);
+    item[0] = 'gavin.sharp\x40gmail.com';
+    item[1] = '2004-09-21 22:11:42 PDT';
+    item[2] = html;
+    item[3] = '&lt;div class="bz_comment_head"&gt;'
+              + '&lt;span class="bz_comment_user"&gt;'
+              + '\x3cspan class=\"vcard\"\x3e\x3ca class=\"email\" href=\"mailto:gavin.sharp&#64;gmail.com\" title=\":Gavin Sharp (use gavin&#64;gavinsharp.com for email) &lt;gavin.sharp&#64;gmail.com&gt;\"\x3e \x3cspan class=\"fn\"\x3e:Gavin Sharp (use gavin&#64;gavinsharp.com for email)\x3c\/span\x3e\x3c\/a\x3e\n\x3c\/span\x3e'
+              + '&lt;/span&gt;'
+              + '&lt;span class="bz_comment_time"&gt; ' + item[1] + ' &lt;/span&gt;'
+              + '&lt;/div&gt;';
+    item[4] = false;
+    item[5] = 0;
+    item[6] = false;
+    ih_activity[4] = item;
+    var html = '';
+
+      
+
+      
+        html += '&lt;span class="ih_cc"&gt;';
+
+      
+
+      
+          
+          html += 'CC: ';html += 'tymerkaev\x40gmail.com';
+
+        html += '&lt;/span&gt;';
+
+
+    var item = new Array(7);
+    item[0] = 'tymerkaev\x40gmail.com';
+    item[1] = '2010-12-08 10:48:57 PST';
+    item[2] = html;
+    item[3] = '&lt;div class="bz_comment_head"&gt;'
+              + '&lt;span class="bz_comment_user"&gt;'
+              + '\x3cspan class=\"vcard\"\x3e\x3ca class=\"email\" href=\"mailto:tymerkaev&#64;gmail.com\" title=\"tymerkaev&#64;gmail.com\"\x3etymerkaev&#64;gmail.com\x3c\/a\x3e\n\x3c\/span\x3e'
+              + '&lt;/span&gt;'
+              + '&lt;span class="bz_comment_time"&gt; ' + item[1] + ' &lt;/span&gt;'
+              + '&lt;/div&gt;';
+    item[4] = true;
+    item[5] = 0;
+    item[6] = false;
+    ih_activity[5] = item;
+    var html = '';
+
+      
+
+      
+
+      
+
+      
+          html += 'Blocks: ';html += '\x3ca class=\"bz_bug_link \n          bz_status_RESOLVED  bz_closed\"\n   title=\"RESOLVED FIXED\"\n   href=\"show_bug.cgi?id=686525\"\x3e686525\x3c\/a\x3e';
+
+
+
+    var item = new Array(7);
+    item[0] = 'gerv\x40mozilla.org';
+    item[1] = '2011-09-13 13:41:18 PDT';
+    item[2] = html;
+    item[3] = '&lt;div class="bz_comment_head"&gt;'
+              + '&lt;span class="bz_comment_user"&gt;'
+              + '\x3cspan class=\"vcard\"\x3e\x3ca class=\"email\" href=\"mailto:gerv&#64;mozilla.org\" title=\"Gervase Markham [:gerv] &lt;gerv&#64;mozilla.org&gt;\"\x3e \x3cspan class=\"fn\"\x3eGervase Markham [:gerv]\x3c\/span\x3e\x3c\/a\x3e\n\x3c\/span\x3e'
+              + '&lt;/span&gt;'
+              + '&lt;span class="bz_comment_time"&gt; ' + item[1] + ' &lt;/span&gt;'
+              + '&lt;/div&gt;';
+    item[4] = false;
+    item[5] = 0;
+    item[6] = false;
+    ih_activity[6] = item;
+    var html = '';
+
+      
+
+      
+
+      
+
+      
+          html += 'No longer blocks: ';html += '\x3ca class=\"bz_bug_link \n          bz_status_RESOLVED  bz_closed\"\n   title=\"RESOLVED FIXED\"\n   href=\"show_bug.cgi?id=686525\"\x3e686525\x3c\/a\x3e';
+
+
+
+    var item = new Array(7);
+    item[0] = 'gerv\x40mozilla.org';
+    item[1] = '2011-09-13 13:41:41 PDT';
+    item[2] = html;
+    item[3] = '&lt;div class="bz_comment_head"&gt;'
+              + '&lt;span class="bz_comment_user"&gt;'
+              + '\x3cspan class=\"vcard\"\x3e\x3ca class=\"email\" href=\"mailto:gerv&#64;mozilla.org\" title=\"Gervase Markham [:gerv] &lt;gerv&#64;mozilla.org&gt;\"\x3e \x3cspan class=\"fn\"\x3eGervase Markham [:gerv]\x3c\/span\x3e\x3c\/a\x3e\n\x3c\/span\x3e'
+              + '&lt;/span&gt;'
+              + '&lt;span class="bz_comment_time"&gt; ' + item[1] + ' &lt;/span&gt;'
+              + '&lt;/div&gt;';
+    item[4] = false;
+    item[5] = 0;
+    item[6] = false;
+    ih_activity[7] = item;
+  inline_history.init();
+</script>
+</td>
+<td>
+<ul class="bz_collapse_expand_comments">
+<li><a href="#" onclick="toggle_all_comments('collapse'); 
+                               return false;">Collapse All Comments</a></li>
+<li><a href="#" onclick="toggle_all_comments('expand');
+                               return false;">Expand All Comments</a></li>
+</ul>
+</td>
+</tr></table>
+</div>
+<hr/><div class="bz_section_additional_comments" id="add_comment">
+<label accesskey="c" for="comment"><b>Additional 
+        <u>C</u>omments</b></label>:
+
+
+      <!-- This table keeps the submit button aligned with the box. -->
+<table><tr><td><textarea cols="80" id="comment" name="comment" rows="10"></textarea>
+<br/><div class="knob-buttons">
+<input id="commit" type="submit" value="Save Changes"/>
+</div>
+<div id="needinfo_container">
+<table>
+</table>
+</div>
+<table cellpadding="0" cellspacing="0" class="status" id="bug_status_bottom">
+<tr>
+<th class="field_label">
+<a href="page.cgi?id=fields.html#status">Status</a>:
+            </th>
+<td><div id="status">VERIFIED
+
+    <noscript><br/>resolved as </noscript>
+<span id="resolution_settings">WONTFIX
+  </span>
+</div>
+<script type="text/javascript">
+  var close_status_array = [
+      'VERIFIED'
+  ];
+  YAHOO.util.Dom.removeClass('dup_id_discoverable', 'bz_default_hidden');
+  hideEditableField( "dup_id_container", "dup_id", 'dup_id_edit_action',
+                     'dup_id', '' )
+  showHideStatusItems( "",  ['',
+                             'VERIFIED']);
+  YAHOO.util.Event.addListener( 'bug_status', "change", showHideStatusItems,
+                                ['',
+                                 'VERIFIED']);
+  YAHOO.util.Event.addListener( 'resolution', "change", showDuplicateItem);
+  YAHOO.util.Event.addListener( 'dup_id_discoverable_action',
+                                'click',
+                                setResolutionToDuplicate,
+                                'RESOLVED');
+  YAHOO.util.Event.addListener( window, 'load',  showHideStatusItems,
+                              ['',
+                               'VERIFIED'] );
+
+</script>
+</td>
+</tr>
+</table>
+</td></tr></table>
+</div>
+</form>
+<hr/>
+<ul class="related_actions">
+<li><a href="show_bug.cgi?format=multiple&amp;id=35">Format For Printing</a></li>
+<li> - <a href="show_bug.cgi?ctype=xml&amp;id=35">XML</a></li>
+<li> - <a href="enter_bug.cgi?cloned_bug_id=35" id="clone_bug">Clone This Bug</a></li>
+<li> - <a href="#">Top of page </a></li>
+</ul>
+<script type="text/javascript">
+  YAHOO.util.Event.onDOMReady(function() {
+    init_clone_bug_menu(
+      YAHOO.util.Dom.get('clone_bug'),
+      '35',
+      'MozillaClassic',
+      'XFE');
+  });
+  </script>
+<div class="navigation">
+<i><font color="#777777">First</font></i>
+<i><font color="#777777">Last</font></i>
+<i><font color="#777777">Prev</font></i>
+<i><font color="#777777">Next</font></i>
+    
+  <i><font color="#777777">This bug is not in your last
+    search results.</font></i>
+</div>
+<br/>
+</div>
+<div id="footer">
+<div class="intro"></div>
+<ul id="useful-links">
+<li id="links-actions"><ul class="links">
+<li><a href="./">Home</a></li>
+<li><span class="separator">| </span><a href="enter_bug.cgi">New</a></li>
+<li><span class="separator">| </span><a href="describecomponents.cgi">Browse</a></li>
+<li><span class="separator">| </span><a href="query.cgi">Search</a></li>
+<li class="form">
+<span class="separator">| </span>
+<form action="buglist.cgi" method="get" onsubmit="if (this.quicksearch.value == '')
+                    { alert('Please enter one or more search terms first.');
+                      return false; } return true;">
+<input class="txt" id="quicksearch_bottom" name="quicksearch" title="Quick Search" type="text" value=""/>
+<input class="btn" id="find_bottom" type="submit" value="Search"/></form>
+    [<a href="page.cgi?id=quicksearch.html" title="Quicksearch Help">help</a>]
+  </li>
+<li><span class="separator">| </span><a href="report.cgi">Reports</a></li>
+<li>
+<span class="separator">| </span>
+<a href="request.cgi?requester=colin.morris2%40gmail.com&amp;requestee=colin.morris2%40gmail.com&amp;do_union=1&amp;group=type&amp;action=queue">My Requests</a></li>
+<li><span class="separator"> | </span>
+<a href="https://bugzilla.mozilla.org/page.cgi?id=mydashboard.html">My Dashboard</a></li><li><span class="separator"> | </span><a href="page.cgi?id=productdashboard.html">Product Dashboard</a></li>
+<li><span class="separator">| </span><a href="userprefs.cgi">Preferences</a></li>
+<li>
+<span class="separator">| </span>
+<a href="http://www.bugzilla.org/docs/4.2/en/html/bug_page.html" target="_blank">Help</a>
+</li>
+<li>
+<span class="separator">| </span>
+<a href="index.cgi?logout=1">Log out</a>
+          colin.morris2@gmail.com</li>
+</ul>
+</li>
+<li id="links-saved">
+<ul class="links">
+<li><a href="buglist.cgi?bug_status=UNCONFIRMED&amp;bug_status=NEW&amp;bug_status=ASSIGNED&amp;bug_status=REOPENED&amp;emailassigned_to1=1&amp;emailreporter1=1&amp;emailtype1=exact&amp;email1=colin.morris2%40gmail.com&amp;field0-0-0=bug_status&amp;type0-0-0=notequals&amp;value0-0-0=UNCONFIRMED&amp;field0-0-1=reporter&amp;type0-0-1=equals&amp;value0-0-1=colin.morris2%40gmail.com">My Bugs</a></li>
+</ul>
+</li>
+</ul>
+<div class="outro"><a href="https://www.mozilla.org/about/policies/privacy-policy.html">Privacy Policy</a></div>
+</div>
+</body></html>

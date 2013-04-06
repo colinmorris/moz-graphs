@@ -15,8 +15,7 @@ class DebuggerMonth(Base):
 
     Stores information about a debugger's position in the network during a given month.
 
-    (In practice, the table will probably only contain debuggers who are ever assigned
-    to a bug.)
+    (In practice, the table will probably only contain debuggers who have touched a bug)
     """
 
     __tablename__= 'debuggermonths'
@@ -42,11 +41,13 @@ class DebuggerMonth(Base):
 
 def populate_debuggermonths(session):
     # This is a mix of code and pseudo-code
+
+    # This is too restrictive
     assignee_ids = set(session.query(distinct(Bug.assignee_id)).all())
 
     for month in session.query(Month):
         graph = MozGraph.by_month(month, session)# TODO: should this be an IRC graph? I think so
-        for debugger in graph.debuggers:
+        for debugger in graph.debuggers():
             if debugger.id in assignee_ids:
                 dm = DebuggerMonth(dbid=debugger.id, monthid=month.id)
                 # TODO: Fill in the graph variables

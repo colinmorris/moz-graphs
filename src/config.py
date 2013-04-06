@@ -2,7 +2,8 @@ __author__ = 'colin'
 
 import os
 
-ROOT_DIR = os.path.join(os.getenv('HOME'), 'workspace/moz-graphs')
+# TODO: This can probably be done portably using __module__ and relative paths.
+ROOT_DIR = os.path.join(os.getenv('HOME'), 'work/moz-graphs')
 
 DATA_DIR = os.path.join(ROOT_DIR, 'data')
 LOG_DIR = os.path.join(ROOT_DIR, 'logs')

@@ -23,11 +23,14 @@ class Alias(Base):
 
 
 class Chat(Base):
+    """This represents a uni-directional communication from one debugger to another on a particular date.
+    """
     __tablename__ = "chats"
     
     id = Column(Integer, primary_key=True) 
     p1 = Column(ForeignKey('debuggers.id'))
     p2 = Column(ForeignKey('debuggers.id'))
+    # The number of communications sent on this day
     n = Column(Integer, default=1)
     date = Column(Date)
 

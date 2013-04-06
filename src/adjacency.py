@@ -1,10 +1,14 @@
 """
 Code for outputting data in the form of comma-separated adjacency matrices,
 given a DB session.
+
+Turns out this isn't particularly useful in the grand scheme of things,
+since it can't talk nicely with igraph.
 """
 from src.bug_events import BugEvent
 from src.bugs import Bug
 from src.debuggers import Debugger
+import pickle
 
 __author__ = 'colin'
 
@@ -12,6 +16,9 @@ from models import *
 from utils import *
 from sqlalchemy import   func
 from src.config import ADJ_DIR
+from igraph import Graph
+
+
 
 class AdjacencyMatrix(object):
 
@@ -78,7 +85,7 @@ class AdjacencyMatrix(object):
         filter(BugEvent.date <= self.stop).count()
 
     def save(self):
-        f = open(self.fname(self._month))
+        f = open(self.fname(self._month), 'w')
         writer = UnicodeWriter(f)
         writer.writerow([''] + map(unicode, self.relevant_debuggers) )
 

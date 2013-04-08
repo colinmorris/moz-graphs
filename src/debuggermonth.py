@@ -61,8 +61,7 @@ def populate_debuggermonths(session):
             dm.indegree = vertex.indegree()
             dm.outdegree = vertex.outdegree()
             dm.betweenness = vertex.betweenness()
-            raise NotImplementedError("Need to implement effective size!")
-            dm.effective_size = None
+            dm.effective_size = graph.effective_size(vertex)
 
             session.add(dm)
 

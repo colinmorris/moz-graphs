@@ -74,11 +74,26 @@ class MozGraph(object):
 
     def effective_size(self, vertex):
         """A variable that igraph doesn't come with, and we have to implement ourselves.
+
+        Effective size of a node is the number of alters the node has, minus the average number of ties that each alter
+         has to other alters: n – 2t/2, where n is the number of alters, and t is the number of ties among them.
         """
         if not isinstance(vertex, int):
             vertex = vertex.index
-        neighbours = self.g.neighbors(vertex)
-        n_neighbour_neighbours = sum(self.g.neighborhood_size(neighbours, 1))
+        neighbours = set(self.g.neighbors(vertex))
+        total_metaneighbours = 0
+        for neigh in neighbours:
+            neighbours_squared = set(self.g.neighbors(neigh))
+            total_metaneighbours += set.intersection(neighbours, neighbours_squared)
+
+        nneighbs = len(neighbours)
+        avg_metaneighbs = len(total_metaneighbours)/(nneighbs+0.0)
+
+        return nneighbs - avg_metaneighbs
+
+
+
+
 
     @classmethod
     def load(cls, month, session):

@@ -6,19 +6,10 @@ from config import *
 from models import *
 from bug_events import BugEvent
 
-class MozGraphNode(object):
-    # TODO
-    def __init__(self):
-        raise NotImplementedError
-
-class MozGraph(object): # TODO: Should this inherit from igraph.Graph? Probably yes
-    """A graph of bugs and debuggers during a particular month.
-    """
-
 class MozGraph(object):
 
     def __init__(self, month, session):
-        self.g = Graph()
+        self.g = Graph(directed=True)
         self.session = session
         self.month = month
         self.start = month.first
@@ -81,6 +72,14 @@ class MozGraph(object):
             self.bid_to_vertex[bug.bzid] = self.g.vs[index]
         return self.bid_to_vertex[bug.bzid]
 
+    def effective_size(self, vertex):
+        """A variable that igraph doesn't come with, and we have to implement ourselves.
+        """
+        if not isinstance(vertex, int):
+            vertex = vertex.index
+        neighbours = self.g.neighbors(vertex)
+        n_neighbour_neighbours = sum(self.g.neighborhood_size(neighbours, 1))
+
     @classmethod
     def load(cls, month, session):
         """If we already have a pickled graph for this month, load it. Otherwise, load
@@ -118,4 +117,11 @@ class MozIRCGraph(MozGraph):
     the IRC network.
     """
 
-    pass
+    def _populate_bugevents(self):
+        pass
+
+    def __getitem__(self, item):
+        """Shorthand for accessing the vertex associated with a particular
+        debugger id.
+        """
+        return self.dbid_to_vertex[item]

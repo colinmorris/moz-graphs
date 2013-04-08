@@ -21,6 +21,7 @@ from bug_events import BugEvent
 from models import Chat
 import datetime
 from mozgraph import MozGraph, MozIRCGraph
+from utils import *
 
 MONTHDELTA = datetime.timedelta(days=28)
 
@@ -52,6 +53,10 @@ class BugMonth(Base):
     platform = Column(String)
     product = Column(String)
     assigned = Column(Boolean)
+
+
+    ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##########################
+    ############ EVERYTHING BELOW IS NOT ##########################
 
 
     # __ASSIGNEE__
@@ -112,9 +117,8 @@ class BugMonth(Base):
 
 
 
+@museumpiece
 def populate_bugmonths(session):
-    """TODO: Documentme
-    """
     for month in session.query(Month):
         for bug in session.query(Bug):
             state = session.query(BugState).filter_by(monthid=month.id).\
@@ -130,6 +134,7 @@ def populate_bugmonths(session):
 
     session.commit()
 
+@museumpiece
 def enrich_outcome_characteristics(session):
     for bm in session.query(BugMonth):
         bm.status = bm.state.status

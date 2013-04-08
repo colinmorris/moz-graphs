@@ -53,6 +53,7 @@ def pop_bm():
     from src.bugmonth_variables import populate_bugmonths, enrich_assignee
     #populate_bugmonths(session)
     enrich_assignee(session)
+    session.commit()
 
 
 if len(sys.argv) > 1 and sys.argv[1] == '-i':

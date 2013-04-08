@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 from alchemical_base import Base
 import config
+import warnings
 
 _t0 = time.time()
 _t1 = time.time()
@@ -24,6 +25,25 @@ _IRC_BLACKLIST = ['nobody', 'david', '``', 'mc', 'foo', 'mw', 'help', 'register'
 DBLOC_TO_ENGINE = {}
 #engine = create_engine(dbname)
 #Session = sessionmaker(bind=engine)
+
+def museumpiece(func):
+    '''Decorator to mark functions that were only intended to be called once, and
+    have served their purpose (e.g. to populate a table from scratch), but which we
+    keep around for illustrative purposes, and in case the table gets dropped or
+    something.'''
+    def new_func(*args, **kwargs):
+        warnings.warn("Call to museum piece function {}.".format(func.__name__),
+                       category=DeprecationWarning)
+        conf = raw_input("Are you sure you want to continue? (y/*) ")
+        if conf in 'yY':
+            return func(*args, **kwargs)
+        else:
+            print "Okay then."
+            return
+    new_func.__name__ = func.__name__
+    new_func.__doc__ = func.__doc__
+    new_func.__dict__.update(func.__dict__)
+    return new_func
 
 class UnicodeWriter:
     """

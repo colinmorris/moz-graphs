@@ -148,7 +148,7 @@ def god_base():
     """Return a declarative base which is aware of all the classes that
     inherit from it (i.e. our full db structure).
     """
-    import models, months, mozillians, bugstate, bugs, bugmonth_variables
+    import models, months, mozillians, bugstate, bugs, bugmonth_variables, debuggermonth
     return Base
 
 def create_tables(dbname=config.DB_URI, alembic_reset=False):
@@ -160,7 +160,7 @@ def create_tables(dbname=config.DB_URI, alembic_reset=False):
 
     # We need to import all modules that contain mapped classes using Base so
     # we create all the relevant tables and don't get confused by any foreignkeys
-    import models, months, mozillians, bugstate, bugs, bugmonth_variables
+    import models, months, mozillians, bugstate, bugs, bugmonth_variables, debuggermonth
     Base.metadata.create_all(engine)
 
 

@@ -55,10 +55,6 @@ class BugMonth(Base):
     assigned = Column(Boolean)
 
 
-    ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##########################
-    ############ EVERYTHING BELOW IS NOT ##########################
-
-
     # __ASSIGNEE__
     assignee_nbugs_prior_month = Column(Integer)
     assignee_nbugs_past_monthly_avg = Column(Float)
@@ -84,6 +80,9 @@ class BugMonth(Base):
     assignee_nirc_received_prior_month = Column(Integer)
     assignee_nirc_received_past_monthly_avg = Column(Float)
     assignee_nirc_received_past_cumulative = Column(Integer)
+
+    ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##########################
+    ############ EVERYTHING BELOW IS NOT ##########################
 
     # TODO: Graph stuff related to assignee
     # e.g.
@@ -152,10 +151,13 @@ def enrich_outcome_characteristics(session):
 
     session.commit()
 
+
+@museumpiece
 def enrich_assignee(session):
     for bm in session.query(BugMonth):
         ass = bm.assignee
         if ass is None:
+            # If this bug is unassigned, then all its fields shall be null.
             continue
 
 

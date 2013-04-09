@@ -21,6 +21,8 @@ class DebuggerMonth(Base):
 
     __tablename__= 'debuggermonths'
 
+    id = Column(Integer, primary_key=True)
+
     dbid = Column(ForeignKey("debuggers.id"))
     monthid = Column(ForeignKey('months.id'))
 

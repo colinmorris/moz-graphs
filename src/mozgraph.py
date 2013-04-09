@@ -73,10 +73,11 @@ class MozGraph(object):
         return self.bid_to_vertex[bug.bzid]
 
     def effective_size(self, vertex):
-        """A variable that igraph doesn't come with, and we have to implement ourselves.
-
-        Effective size of a node is the number of alters the node has, minus the average number of ties that each alter
-         has to other alters: n – 2t/2, where n is the number of alters, and t is the number of ties among them.
+        """A variable that igraph doesn't come with, and we have to implement ourselves. 
+        Effective size of a node is the number of alters the node has, 
+        minus the average number of ties that each alter has to other alters: 
+        n - 2t/2,
+        where n is the number of alters, and t is the number of ties among them.
         """
         if not isinstance(vertex, int):
             vertex = vertex.index

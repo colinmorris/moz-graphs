@@ -5,6 +5,7 @@ import os
 from config import *
 from models import *
 from bug_events import BugEvent
+from months import Month
 
 class MozGraph(object):
 
@@ -19,6 +20,14 @@ class MozGraph(object):
         self.bid_to_vertex = {}
         self._populate_irc()
         self._populate_bugevents()
+
+    @classmethod
+    def all(cls, session):
+        """A convenience method returning an iterator of all MozGraphs, (ranging
+        over all Months in the given session).
+        """
+        for month in session.query(Month):
+            yield cls.load(month, session)
 
     @staticmethod
     def fname(month):
@@ -85,10 +94,10 @@ class MozGraph(object):
         total_metaneighbours = 0
         for neigh in neighbours:
             neighbours_squared = set(self.g.neighbors(neigh))
-            total_metaneighbours += set.intersection(neighbours, neighbours_squared)
+            total_metaneighbours += len(set.intersection(neighbours, neighbours_squared))
 
         nneighbs = len(neighbours)
-        avg_metaneighbs = len(total_metaneighbours)/(nneighbs+0.0)
+        avg_metaneighbs = total_metaneighbours/(nneighbs+0.0)
 
         return nneighbs - avg_metaneighbs
 

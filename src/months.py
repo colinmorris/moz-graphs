@@ -1,4 +1,4 @@
-from src.bug_events import BugEvent
+from src.utils import museumpiece
 
 __author__ = 'colin'
 
@@ -90,6 +90,8 @@ class MonthSet(object):
         If end is True, then return month ENDING after the given date.
 
         If eq is true then after becomes after or equal to.
+
+        @throws: Indexerror, if this date is in the last month
         """
         array = self.lasts if end else self.firsts
 
@@ -103,6 +105,7 @@ class MonthSet(object):
         # Are we okay with just returning a list, or should it be another MonthSet?
         return self.months.__getitem__(item)
 
+@museumpiece
 def populate_months(session):
     if session.query(Month).count() > 0:
         raise Exception("Months table is already populated.")

@@ -49,7 +49,6 @@ def add_comments(interval=0):
     from src.bug_events import BugEvent
     BugEvent.scrape_comment_events(session, interval)
 
-# Everything below this line has yet to be run (successfully)
 
 def pop_bm():
     from src.bugmonth_variables import populate_bugmonths, enrich_assignee
@@ -66,6 +65,4 @@ def populate_dm():
 
 
 if len(sys.argv) > 1 and sys.argv[1] == '-i':
-    pop_bm()
-    populate_dm()
     sys.exit(1)

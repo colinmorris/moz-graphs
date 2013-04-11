@@ -7,6 +7,7 @@ from src.months import Month
 from src.bugs import Bug
 from src.mozgraph import MozGraph, MozIRCGraph
 from src.bug_events import BugEvent
+from src.utils import *
 
 # TODO: Add an import of this module to the two relevant spots in utils.py and run an alembic migration
 
@@ -38,15 +39,21 @@ class DebuggerMonth(Base):
     outdegree = Column(Integer)
     betweenness = Column(Float)
     effective_size = Column(Float)
+    # TODO
+    efficiency = Column(Float) # TODO: This is hard to calcualte. Let's leave it for later.
+    churn = Column(Integer) # TODO: This should be on the full graph, not on just the IRC graph
+    nreported = Column(Integer) # TODO: Not IRC
 
     debugger = relationship("Debugger")
     month = relationship('Month')
 
 
+@museumpiece
 def populate_debuggermonths(session):
     # For efficiency, we restrict our search to those debuggers who have touched a bug in some way
-    assignee_ids = set(session.query(distinct(Bug.assignee_id)).all())
-    bugeventful_ids = set(session.query(distinct(BugEvent.bzid)).all())
+    first = lambda tup:tup[0]
+    assignee_ids = set(map(first, session.query(distinct(Bug.assignee_id)).all()))
+    bugeventful_ids = set(map(first, session.query(distinct(BugEvent.dbid)).all()))
 
     bugtouchers = set.union(assignee_ids, bugeventful_ids)
 

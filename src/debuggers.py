@@ -3,6 +3,9 @@ from sqlalchemy.orm import relationship, backref
 from src import utils, mozillians
 from src.alchemical_base import Base
 from src.models import VarColumn
+#from src.bug_events import BugEvent
+from src.months import MonthSet
+from src.utils import museumpiece
 
 __author__ = 'colin'
 
@@ -26,8 +29,14 @@ class Debugger(Base):
     mozid = Column(Integer, ForeignKey('mozillians.id'))
     mozillians_searched = VarColumn(Boolean, default=False)
 
+    # Whether or not this Debugger ever touches a bug (if False, they're just a chatter)
+    bugtoucher = Column(Boolean)
+    # The first month in which this debugger touches a bug.
+    firstmonthid = Column(Integer, ForeignKey('months.id'))
+
     # I made this one-to-one, right? Shaky on syntax
     mozillian = relationship("Mozillian", uselist=False, backref=backref("debugger"))
+    firstmonth = relationship("Month")
 
     linktype = None # Do I need this column?
 
@@ -152,3 +161,23 @@ class Debugger(Base):
         utils.gate("Merging " + str(self.mozillian) + "\nwith " + str(self))
         utils.mozillian_merge(self, self.mozillian)
         self.mozillians_searched = True
+
+@museumpiece
+def enrich_bugtouchers(session):
+    from src.bug_events import BugEvent
+    months = MonthSet.from_session(session)
+    for db in session.query(Debugger):
+        first_event = session.query(BugEvent).filter_by(dbid=db.id).order_by(BugEvent.date).first()
+        if first_event is None:
+            db.bugtoucher = False
+        else:
+            db.bugtoucher = True
+            # TODO: Current month, or month after? Using month after now
+            # to stay consistent with our implementation of bugs, but maybe
+            # check with Joel on this?
+            try:
+                db.firstmonthid = months.monthafter(first_event.date).id
+            except IndexError:
+                db.bugtoucher = False
+
+    session.commit()

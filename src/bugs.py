@@ -19,7 +19,7 @@ class Bug(Base):
     nblocks = Column(Integer)
     nvoters = Column(Integer)
     product = Column(String)
-    reported = Column(Date) # TODO: date or datetime?
+    reported = Column(Date)
     resolved = Column(Date)
     status = Column(String)
     verified = Column(Date)

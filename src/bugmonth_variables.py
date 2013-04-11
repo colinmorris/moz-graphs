@@ -21,7 +21,9 @@ from bug_events import BugEvent
 from models import Chat
 import datetime
 from mozgraph import MozGraph, MozIRCGraph
+from debuggermonth import DebuggerMonth
 from utils import *
+import itertools
 
 MONTHDELTA = datetime.timedelta(days=28)
 
@@ -84,11 +86,47 @@ class BugMonth(Base):
     ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##########################
     ############ EVERYTHING BELOW IS NOT ##########################
 
-    # TODO: Graph stuff related to assignee
-    # e.g.
+    # __BUG CONTEXT__
+    # bugs
+    n_unresolved_bugs_prior_month = Column(Integer)
+    n_active_bugs_prior_month = Column(Integer)
+    n_reported_bugs_prior_month = Column(Integer)
+    n_resolved_bugs_prior_month = Column(Integer)
 
-    assignee_constraint_prior_month = Column(Float) # TODO: Is this a float or int?
-    # etc.
+    #debuggers, chat and events
+    n_debuggers_prior_month = Column(Integer)
+    n_IRC_members_prior_month = Column(Integer)
+    n_history_events_prior_month = Column(Integer)
+    n_directed_chats_prior_month = Column(Integer)
+    n_undirected_chats_prior_month = Column(Integer)
+
+    # Network
+    network_diameter_prior_month = Column(Integer) # int, right? TODO doublecheck
+    network_average_path_length_prior_month = Column(Float)
+    network_density_prior_month = Column(Float)
+    network_clustering_prior_month = Column(Float)
+
+    ## ASSIGNEE GRAPH STUFF
+    assignee_constraint_prior_month = Column(Float)
+    assignee_constraint_past_monthly_avg = Column(Float)
+
+    assignee_closeness_prior_month = Column(Float)
+    assignee_closeness_past_monthly_avg = Column(Float)
+
+    assignee_clustering_prior_month = Column(Float)
+    assignee_clustering_past_monthly_avg = Column(Float)
+
+    assignee_indegree_prior_month = Column(Integer)
+    assignee_indegree_past_monthly_avg = Column(Float)
+
+    assignee_outdegree_prior_month = Column(Integer)
+    assignee_outdegree_past_monthly_avg = Column(Float)
+
+    assignee_betweenness_prior_month = Column(Float)
+    assignee_betweenness_past_monthly_avg = Column(Float)
+
+    assignee_effectivesize_prior_month = Column(Float)
+    assignee_effectivesize_past_monthly_avg = Column(Float)
 
 
     # __BUG'S DEBUGGERS__
@@ -226,28 +264,63 @@ def enrich_assignee(session):
         bm.assignee_nirc_links_past_monthly_avg =\
             bm.assignee_nirc_links_past_cumulative / bm._age_in_months
 
+def enrich_bugcontext_nograph(session):
+    """All these 'bug context' variables are calculated on a per month basis and
+    are completely agnostic of the bug under consideration, so this should make
+    calculating them a little easier (both less complex, and less time-consuming).
+    """
+    for (month, nextmonth) in monthpairs(session.query(Month).order_by(Month.first)):
+        n_unresolved = session.query(BugState).\
+            filter_by(monthid=month.id).\
+            filter_by(resolution='---').count()
+
+        n_active = session.query(distinct(BugEvent.bzid)).\
+            filter(BugEvent.date )
+
+
 def enrich_assignee_graph(session):
-    # TODO: This is just a skeleton with one example call. (It may or may not work as written.)
     """
-    for each month:
-        get the graph for that month
-        for each bug active during this month:
-            get the variables related to that bug's assignee wrt the current graph
-            and save them
+    for each assignee (of any bug):
+        for each month from beginning to end:
+            accumulate a monthly average of things
+            if there are any bugmonths with this debugger as assignee, save vars
     """
-    for month in session.query(Month):
-        irc_graph_last_month = MozIRCGraph(session)
-        for bug in session.query(Bug).filter("Bug.reported <= month.first"): # Todo: Is month even in scope here?
-            bm = session.query(BugMonth).filter_by(month=month, bug=bug).first()
-            assignee_node = irc_graph.get_vertex(bm.assignee)
-            bm.assignee_constraint_prior_month = assignee_node.constraint()
+    for dbid in session.query(distinct(Bug.assignee_id)):
+        debugger = session.query(Debugger).filter_by(id=dbid).scalar()
+        firstmonth = debugger.firstmonth
+        assert firstmonth is not None
+        attr_to_total = {'constraint':0, 'closeness': 0, 'clustering':0}
+        # Invariant: this refers to the number of months over which the above dict has
+        # been accumulated
+        nmonths = 0
 
+        month_nextmonth = monthpairs(session.query(Month).\
+        filter(Month.first >= firstmonth.first).\
+        order_by(Month.first))
+        for (month, nextmonth) in month_nextmonth:
 
-def priormonth(query, currmonth, cls):
-    return query.filter()
+            dm = session.query(DebuggerMonth).filter_by(dbid=dbid).filter_by(monthid=month.id).scalar()
+            for attr in attr_to_total:
+                # TODO: Fill me in. But I'm too mentally exhausted for this. This is rly non-trivial.
+                raise NotImplementedError()
 
+            # ASSERTION: we now have the constraint, closeness etc. for the current month
+            # And the past monthly average available with attr_to_total
 
+def monthpairs(months):
+    """[Jan, Jan.5, Feb, Feb.5, Mar...] ->
+       [ (Jan, Feb), (Jan.5, Feb.5), (Feb, Mar)...]
 
-#if __name__ == '__main__':
-#    session = utils.get_session()
-#    populate_bugmonths(session)
+    Basically, walk through two version of an iterator, one fastforwarded by 2.
+    In this context, it lets us get a sequence of tuples of months, such that each
+    tuple has a month and the month that follows it contiguously.
+
+    (We need to fastforward by 2 rather than just 1 because we have overlapping
+    'months' - see months.py)
+
+    Modified version of a neat little recipe stolen from Python's itertools docs.
+    """
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    next(b, None)
+    return itertools.izip(a, b)

@@ -58,7 +58,7 @@ class BugMonth(Base):
 
 
     # __ASSIGNEE__
-    assignee_nbugs_prior_month = Column(Integer)
+    assignee_nbugs_prior_month = Column(Integer) # TODO
     assignee_nbugs_past_monthly_avg = Column(Float)
     assignee_nbugs_past_cumulative = Column(Integer)
 
@@ -189,6 +189,40 @@ def enrich_outcome_characteristics(session):
 
     session.commit()
 
+@museumpiece
+def assignee_nbugs_bandaid(session):
+    """We didn't add n_bugs in enrich_assignee, so we do it here.
+    """
+    for bm in session.query(BugMonth):
+        ass = bm.assignee
+        if ass is None:
+            continue
+
+        currmonth = bm.month
+
+        # All the unique bugs the assignee has worked on
+        ass_bugs = session.query(distinct(BugEvent.bzid)).filter_by(dbid=ass.id)
+
+        bm.assignee_nbugs_prior_month = ass_bugs.\
+            filter(BugEvent.date >= currmonth.first-MONTHDELTA).\
+            filter(BugEvent.date < currmonth.first).\
+            count()
+
+        cumul = ass_bugs.\
+            filter(BugEvent.date < currmonth.first).\
+            count()
+
+        # The hilarity of having all these variables prefixed by ass_ is not wasted on me
+
+        bm.assignee_nbugs_past_cumulative = cumul
+        try:
+            ass_age = (currmonth.first - ass.firstmonth.first).days/28
+            bm.assignee_nbugs_monthly_avg = cumul/(ass_age+0.0)
+        except (ZeroDivisionError, AttributeError):
+            bm.assignee_nbugs_monthly_avg = None
+
+    session.commit()
+
 
 @museumpiece
 def enrich_assignee(session):
@@ -264,6 +298,7 @@ def enrich_assignee(session):
         bm.assignee_nirc_links_past_monthly_avg =\
             bm.assignee_nirc_links_past_cumulative / bm._age_in_months
 
+@museumpiece
 def enrich_bugcontext_nograph(session):
     """All these 'bug context' variables are calculated on a per month basis and
     are completely agnostic of the bug under consideration, so this should make
@@ -271,11 +306,76 @@ def enrich_bugcontext_nograph(session):
     """
     for (month, nextmonth) in monthpairs(session.query(Month).order_by(Month.first)):
         n_unresolved = session.query(BugState).\
-            filter_by(monthid=month.id).\
+            filter_by(monthid=nextmonth.id).\
             filter_by(resolution='---').count()
 
         n_active = session.query(distinct(BugEvent.bzid)).\
-            filter(BugEvent.date )
+            filter(BugEvent.date >= month.first).\
+            filter(BugEvent.date <= month.last).count()
+
+        n_reported = session.query(Bug).\
+            filter(Bug.reported >= month.first).\
+            filter(Bug.reported <= month.last).count()
+
+        n_resolved = session.query(Bug).\
+            filter(Bug.resolved >= month.first).\
+            filter(Bug.resolved <= month.last).count()
+
+        n_directed_chats = session.query(Chat).\
+            filter(Chat.date >= month.first).\
+            filter(Chat.date <= month.last).count()
+
+        # TODO: undirected
+
+        n_history_events = session.query(BugEvent).\
+            filter(BugEvent.date >= month.first).\
+            filter(BugEvent.date <= month.last).count()
+
+        semes = set(session.query(distinct(Chat.p1)).\
+            filter(Chat.date >= month.first).\
+            filter(Chat.date <= month.last).all())
+
+        ukes = set(session.query(distinct(Chat.p2)).\
+            filter(Chat.date >= month.first).\
+            filter(Chat.date <= month.last).all())
+
+        n_irc_members = len(set.union(semes, ukes))
+
+        bugtouchers = set(session.query(BugEvent.dbid).\
+            filter(BugEvent.date >= month.first).\
+            filter(BugEvent.date <= month.last).all())
+
+        n_debuggers = len(set.union(semes, ukes, bugtouchers))
+
+        for bm in session.query(BugMonth).filter_by(month=nextmonth):
+            bm.n_unresolved_bugs_prior_month = n_unresolved
+            bm.n_active_bugs_prior_month = n_active
+            bm.n_reported_bugs_prior_month = n_reported
+            bm.n_resolved_bugs_prior_month = n_resolved
+
+            bm.n_directed_chats_prior_month = n_directed_chats
+            bm.n_debuggers_prior_month = n_debuggers
+            bm.n_IRC_members_prior_month = n_irc_members
+            bm.n_history_events_prior_month = n_history_events
+
+    session.commit()
+
+
+def enrich_bugcontext_graph(session):
+    for (month, nextmonth) in monthpairs(session.query(Month).order_by(Month.first)):
+        graph = MozIRCGraph.load(month, session)
+
+        diameter = graph.g.diameter(True, True)
+        apl = graph.g.average_path_length(True, True)
+        density = graph.g.density()
+        clustering = graph.g.transitivity_undirected()
+        for bm in session.query(BugMonth).filter_by(month=nextmonth):
+            bm.network_diameter_prior_month = diameter
+            bm.network_average_path_length_prior_month = apl
+            bm.network_density_prior_month = density
+            bm.network_clustering_prior_month = clustering
+
+    session.commit()
 
 
 def enrich_assignee_graph(session):
@@ -285,6 +385,7 @@ def enrich_assignee_graph(session):
             accumulate a monthly average of things
             if there are any bugmonths with this debugger as assignee, save vars
     """
+    from src.debuggers import Debugger
     for dbid in session.query(distinct(Bug.assignee_id)):
         debugger = session.query(Debugger).filter_by(id=dbid).scalar()
         firstmonth = debugger.firstmonth
@@ -320,7 +421,7 @@ def monthpairs(months):
 
     Modified version of a neat little recipe stolen from Python's itertools docs.
     """
-    a, b = itertools.tee(iterable)
+    a, b = itertools.tee(months)
     next(b, None)
     next(b, None)
     return itertools.izip(a, b)

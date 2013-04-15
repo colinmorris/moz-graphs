@@ -64,5 +64,7 @@ def populate_dm():
     session.commit()
 
 
-if len(sys.argv) > 1 and sys.argv[1] == '-i':
-    sys.exit(1)
+
+import src.bugmonth_variables as bm
+bandaid = bm.assignee_nbugs_bandaid
+enrich = bm.enrich_bugcontext_graph

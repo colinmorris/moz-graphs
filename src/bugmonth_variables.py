@@ -24,6 +24,7 @@ from mozgraph import MozGraph, MozIRCGraph
 from debuggermonth import DebuggerMonth
 from utils import *
 import itertools
+from collections import defaultdict
 
 MONTHDELTA = datetime.timedelta(days=28)
 
@@ -83,8 +84,6 @@ class BugMonth(Base):
     assignee_nirc_received_past_monthly_avg = Column(Float)
     assignee_nirc_received_past_cumulative = Column(Integer)
 
-    ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##########################
-    ############ EVERYTHING BELOW IS NOT ##########################
 
     # __BUG CONTEXT__
     # bugs
@@ -98,10 +97,14 @@ class BugMonth(Base):
     n_IRC_members_prior_month = Column(Integer)
     n_history_events_prior_month = Column(Integer)
     n_directed_chats_prior_month = Column(Integer)
-    n_undirected_chats_prior_month = Column(Integer)
+    n_undirected_chats_prior_month = Column(Integer) # TODO
+
+    ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##############
+    ############ (unless otherwise noted) ############
+    ############ EVERYTHING BELOW IS NOT  ############
 
     # Network
-    network_diameter_prior_month = Column(Integer) # int, right? TODO doublecheck
+    network_diameter_prior_month = Column(Integer)
     network_average_path_length_prior_month = Column(Float)
     network_density_prior_month = Column(Float)
     network_clustering_prior_month = Column(Float)
@@ -151,6 +154,36 @@ class BugMonth(Base):
 
     # Float so that we can use half-months. Or maybe even other fractions?
     _age_in_months = Column(Float)
+
+
+def enrich_bug_network(session):
+    # Hoo boy. This is kind of tricky. Basically, we need to keep two different
+    # sets of running averages because of our overlapping month windows. Probably
+    # should apply a higher level abstraction here, but whatever.
+    even_bug_to_graphvars = defaultdict(lambda: defaultdict())
+    odd_bug_to_graphvars = defaultdict(lambda: defaultdict())
+    accs = [even_bug_to_graphvars, odd_bug_to_graphvars]
+    acc_index = 0
+    for (month, nextmonth) in monthpairs(session.query(Month).order_by(Month.first)):
+        acc = accs[acc_index]
+        acc_index = (acc_index+1)%2
+
+        graph = MozGraph.load(month, session)
+
+        for bug in session.query(Bug):
+            bm = session.query(DebuggerMonth).filter_by(monthid=nextmonth.id).\
+                filter_by(bugid=bug.bzid).scalar()
+            vertex = graph[bug]
+            # YOUAREHERE
+            constraint = vertex.constraint()
+            closeness = vertex.closeness()
+            clustering = graph.g.transitivity_local_undirected([vertex])[0]
+            #size = vertex.size()
+            #efficiency
+            #eff_size_churn
+
+            acc[bug.id]['constraint'] = None
+
 
 
 
@@ -361,6 +394,7 @@ def enrich_bugcontext_nograph(session):
     session.commit()
 
 
+@museumpiece
 def enrich_bugcontext_graph(session):
     for (month, nextmonth) in monthpairs(session.query(Month).order_by(Month.first)):
         graph = MozIRCGraph.load(month, session)

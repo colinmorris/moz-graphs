@@ -6,6 +6,8 @@ from config import *
 from models import *
 from bug_events import BugEvent
 from months import Month
+from debuggers import Debugger
+from bugs import Bug
 
 class MozGraph(object):
 
@@ -20,6 +22,19 @@ class MozGraph(object):
         self.bid_to_vertex = {}
         self._populate_irc()
         self._populate_bugevents()
+
+    def __getitem__(self, item):
+        """XXX: This isn't really parallel with the implementation of getitem
+        in MozIRCGraph (which came earlier). Anyways, takes a Bug or Debugger.
+        """
+        if isinstance(item, Debugger):
+            return self.dbid_to_vertex[item.id]
+
+        elif isinstance(item, Bug):
+            return self.bid_to_vertex[item.bzid]
+
+        else:
+            raise ValueError("Expected a debugger or bug")
 
     @classmethod
     def all(cls, session):

@@ -66,5 +66,4 @@ def populate_dm():
 
 
 import src.bugmonth_variables as bm
-bandaid = bm.assignee_nbugs_bandaid
-enrich = bm.enrich_bugcontext_graph
+enrich = bm.enrich_bug_network

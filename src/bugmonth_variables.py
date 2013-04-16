@@ -99,15 +99,36 @@ class BugMonth(Base):
     n_directed_chats_prior_month = Column(Integer)
     n_undirected_chats_prior_month = Column(Integer) # TODO
 
-    ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##############
-    ############ (unless otherwise noted) ############
-    ############ EVERYTHING BELOW IS NOT  ############
 
     # Network
     network_diameter_prior_month = Column(Integer)
     network_average_path_length_prior_month = Column(Float)
     network_density_prior_month = Column(Float)
     network_clustering_prior_month = Column(Float)
+
+    ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##############
+    ############ (unless otherwise noted) ############
+    ############ EVERYTHING BELOW IS NOT  ############
+
+    # Bug network stuff
+    bug_constraint_prior_month = Column(Float)
+    bug_constraint_past_monthly_avg = Column(Float)
+
+    bug_closeness_prior_month = Column(Float)
+    bug_closeness_past_monthly_avg = Column(Float)
+
+    bug_clustering_prior_month = Column(Float)
+    bug_clustering_past_monthly_avg = Column(Float)
+
+    bug_effective_size_prior_month = Column(Float)
+    bug_effective_size_past_monthly_avg = Column(Float)
+
+    bug_efficiency_prior_month = Column(Float)
+    bug_efficiency_past_monthly_avg = Column(Float)
+
+    bug_effective_size_churn_prior_month = Column(Float)
+    bug_effective_size_churn_past_monthly_avg = Column(Float)
+
 
     ## ASSIGNEE GRAPH STUFF
     assignee_constraint_prior_month = Column(Float)
@@ -157,6 +178,14 @@ class BugMonth(Base):
 
 
 def enrich_bug_network(session):
+    """
+    This function fills in variables relating to the focal bug's position
+    in the network, such as...
+        bug_constraint_prior_month
+        bug_effective_size_churn_past_monthly_avg
+        etc.
+    """
+
     # Hoo boy. This is kind of tricky. Basically, we need to keep two different
     # sets of running averages because of our overlapping month windows. Probably
     # should apply a higher level abstraction here, but whatever.
@@ -164,25 +193,50 @@ def enrich_bug_network(session):
     odd_bug_to_graphvars = defaultdict(lambda: defaultdict())
     accs = [even_bug_to_graphvars, odd_bug_to_graphvars]
     acc_index = 0
+    prev_months_counter = doublecount(1)
+    graph = None
+    next_graph = None
     for (month, nextmonth) in monthpairs(session.query(Month).order_by(Month.first)):
         acc = accs[acc_index]
         acc_index = (acc_index+1)%2
+        npastmonths = prev_months_counter.next()
 
-        graph = MozGraph.load(month, session)
+        # Need to create both graphs from scratch on the first iteration
+        if graph is None:
+            graph = MozGraph.load(month, session)
+            next_graph = MozGraph.load(nextmonth, session)
+        else:
+            graph = next_graph
+            next_graph = MozGraph.load(nextmonth, session)
 
         for bug in session.query(Bug):
-            bm = session.query(DebuggerMonth).filter_by(monthid=nextmonth.id).\
+            bm = session.query(BugMonth).filter_by(monthid=nextmonth.id).\
                 filter_by(bugid=bug.bzid).scalar()
             vertex = graph[bug]
-            # YOUAREHERE
             constraint = vertex.constraint()
             closeness = vertex.closeness()
             clustering = graph.g.transitivity_local_undirected([vertex])[0]
-            #size = vertex.size()
-            #efficiency
-            #eff_size_churn
+            effective_size = graph.effective_size(vertex)
+            efficiency = graph.efficiency(vertex)
+            effective_size_churn = MozGraph.effective_size_churn(bug, graph, next_graph)
 
-            acc[bug.id]['constraint'] = None
+            varnames = [
+                'constraint', 'clustering', 'closeness', 'effective_size',
+                'efficiency', 'effective_size_churn',
+            ]
+            for varname in varnames:
+                acc[bug.id][varname] += locals()[varname]
+                prior_name = 'bug_' + varname + '_prior_month'
+                avg_name = 'bug_' + varname + '_past_monthly_avg'
+
+                setattr(bm, prior_name, locals()[varname])
+
+                avg = acc[bug.id][varname]/npastmonths
+
+                setattr(bm, avg_name, avg)
+
+
+    session.commit()
 
 
 
@@ -459,3 +513,23 @@ def monthpairs(months):
     next(b, None)
     next(b, None)
     return itertools.izip(a, b)
+
+def doublecount(n):
+    """0, 0, 1, 1, 2, 2, 3, 3,...
+    """
+    count1 = itertools.count(n)
+    count2 = itertools.count(n)
+    return roundrobin(count1, count2)
+
+def roundrobin(*iterables):
+    "roundrobin('ABC', 'D', 'EF') --> A D E B F C"
+    # Recipe credited to George Sakkis
+    pending = len(iterables)
+    nexts = itertools.cycle(iter(it).next for it in iterables)
+    while pending:
+        try:
+            for next in nexts:
+                yield next()
+        except StopIteration:
+            pending -= 1
+            nexts = itertools.cycle(itertools.islice(nexts, pending))

@@ -116,6 +116,42 @@ class MozGraph(object):
 
         return nneighbs - avg_metaneighbs
 
+    def disconnected_alters(self, entity):
+        """Return the disconnected alters wrt the vertex connected to the given
+        entity (a Bug or Debugger).
+        """
+        disconns = set([])
+        vertex = self[entity]
+        neighbs = self.g.neighbours(vertex)
+        for neigh in neighbs:
+            neighbours_squared = set(self.g.neighbors(neigh))
+            if len(set.intersection(neighbours, neighbours_squared)) == 0:
+                disconns.add(neigh)
+
+        return disconns
+
+    @staticmethod
+    def effective_size_churn(entity, earlygraph, lategraph):
+        """Joel: Effective size churn (number of different disconnected alters from prior month)
+
+        @param entity: A Bug or Debugger corresponding to our focal node
+        @param earlygraph: The graph that comes earlier (the 'prior month')
+        @param lategraph: The graph corresponding to the focal timeframe
+        """
+        prior_disconns = earlygraph.disconnected_alters(entity)
+        curr_disconns = lategraph.disconnected_alters(entity)
+        news = curr_disconns.difference(prior_disconns)
+        return len(news)
+
+
+    def efficiency(self, vertex):
+        """Another var that igraph doesn't come with.
+
+        = effective size normed by actual size (i.e. eff_size/n_neighbours)
+        """
+        # get all nodes linked to vertex
+        neighbours = self.g.neighbors(vertex)
+        return self.effective_size(vertex)/(len(neighbours)+0.0)
 
 
 

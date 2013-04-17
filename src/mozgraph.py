@@ -122,10 +122,10 @@ class MozGraph(object):
         """
         disconns = set([])
         vertex = self[entity]
-        neighbs = self.g.neighbours(vertex)
+        neighbs = set(self.g.neighbors(vertex)) # American spelling is going to bite me in the ass
         for neigh in neighbs:
             neighbours_squared = set(self.g.neighbors(neigh))
-            if len(set.intersection(neighbours, neighbours_squared)) == 0:
+            if len(set.intersection(neighbs, neighbours_squared)) == 0:
                 disconns.add(neigh)
 
         return disconns
@@ -138,8 +138,13 @@ class MozGraph(object):
         @param earlygraph: The graph that comes earlier (the 'prior month')
         @param lategraph: The graph corresponding to the focal timeframe
         """
+        # We're guaranteed that there's a node for the given entity in the earlygraph,
+        # but not in the late graph
         prior_disconns = earlygraph.disconnected_alters(entity)
-        curr_disconns = lategraph.disconnected_alters(entity)
+        try:
+            curr_disconns = lategraph.disconnected_alters(entity)
+        except KeyError:
+            return 0
         news = curr_disconns.difference(prior_disconns)
         return len(news)
 

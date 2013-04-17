@@ -29,7 +29,14 @@ from collections import defaultdict
 MONTHDELTA = datetime.timedelta(days=28)
 
 class BugMonth(Base):
+    """A sort of join table on bugs and months.
 
+    We only have a bugmonth for (bug, month) tuples where the bug exists at the
+    given month.
+
+    Unless otherwise specified, we're talking about the state of the focal bug at
+    the _beginning_ of the focal month.
+    """
     GRAPH_METRICS = ["constraint", "closeness", "clustering",
                      "indegree", "outdegree", "betweenness", "effective_size",
                      ]
@@ -59,7 +66,7 @@ class BugMonth(Base):
 
 
     # __ASSIGNEE__
-    assignee_nbugs_prior_month = Column(Integer) # TODO
+    assignee_nbugs_prior_month = Column(Integer) # TODO (wait, I think I did? Check.)
     assignee_nbugs_past_monthly_avg = Column(Float)
     assignee_nbugs_past_cumulative = Column(Integer)
 
@@ -171,12 +178,14 @@ class BugMonth(Base):
     state = relationship("BugState")
 
 
+    # __BOOKKEEPING __
     # Vars just used to make calculation of other vars easier, not used directly.
 
     # Float so that we can use half-months. Or maybe even other fractions?
     _age_in_months = Column(Float)
 
 
+@museumpiece
 def enrich_bug_network(session):
     """
     This function fills in variables relating to the focal bug's position
@@ -189,8 +198,9 @@ def enrich_bug_network(session):
     # Hoo boy. This is kind of tricky. Basically, we need to keep two different
     # sets of running averages because of our overlapping month windows. Probably
     # should apply a higher level abstraction here, but whatever.
-    even_bug_to_graphvars = defaultdict(lambda: defaultdict())
-    odd_bug_to_graphvars = defaultdict(lambda: defaultdict())
+    # bug id -> variable -> float value
+    even_bug_to_graphvars = defaultdict(lambda: defaultdict(float))
+    odd_bug_to_graphvars = defaultdict(lambda: defaultdict(float))
     accs = [even_bug_to_graphvars, odd_bug_to_graphvars]
     acc_index = 0
     prev_months_counter = doublecount(1)
@@ -212,8 +222,16 @@ def enrich_bug_network(session):
         for bug in session.query(Bug):
             bm = session.query(BugMonth).filter_by(monthid=nextmonth.id).\
                 filter_by(bugid=bug.bzid).scalar()
-            vertex = graph[bug]
-            constraint = vertex.constraint()
+            if bm is None:
+                continue
+            try:
+                vertex = graph[bug]
+            except KeyError:
+                # If this bug doesn't have any activity this month, then all these
+                # variables are null
+                continue
+            # see: https://bugs.launchpad.net/igraph/+bug/1170016 (I made it!)
+            constraint = vertex.constraint()[0]
             closeness = vertex.closeness()
             clustering = graph.g.transitivity_local_undirected([vertex])[0]
             effective_size = graph.effective_size(vertex)
@@ -225,7 +243,10 @@ def enrich_bug_network(session):
                 'efficiency', 'effective_size_churn',
             ]
             for varname in varnames:
-                acc[bug.id][varname] += locals()[varname]
+                value = locals()[varname]
+                #assert isinstance(value, float) or\
+                #    isinstance(value, int), "Got type %s for var %s" % (type(value), varname)
+                acc[bug.id][varname] += value
                 prior_name = 'bug_' + varname + '_prior_month'
                 avg_name = 'bug_' + varname + '_past_monthly_avg'
 
@@ -473,6 +494,9 @@ def enrich_assignee_graph(session):
             accumulate a monthly average of things
             if there are any bugmonths with this debugger as assignee, save vars
     """
+    # TODO: This needs to be mostly rewritten to follow the template of
+    # enrich_bugcontext_graph or whatever it's called
+
     from src.debuggers import Debugger
     for dbid in session.query(distinct(Bug.assignee_id)):
         debugger = session.query(Debugger).filter_by(id=dbid).scalar()

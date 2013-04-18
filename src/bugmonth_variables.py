@@ -159,6 +159,17 @@ class BugMonth(Base):
     assignee_effectivesize_prior_month = Column(Float)
     assignee_effectivesize_past_monthly_avg = Column(Float)
 
+    assignee_efficiency_prior_month = Column(Float)
+    assignee_efficiency_past_monthly_avg = Column(Float)
+
+    assignee_alter_churn_prior_month = Column(Integer)
+    assignee_alter_churn_past_monthly_avg = Column(Float)
+    assignee_alter_churn_cumulative = Column(Integer)
+
+    assignee_effective_size_churn_prior_month = Column(Float)
+    assignee_effective_size_churn_past_monthly_avg = Column(Float)
+    assignee_effective_size_churn_cumulative = Column(Float)
+
 
     # __BUG'S DEBUGGERS__
     ndebuggers_prior_month = Column(Integer)
@@ -184,24 +195,23 @@ class BugMonth(Base):
     # Float so that we can use half-months. Or maybe even other fractions?
     _age_in_months = Column(Float)
 
+def enrich_assignee_graph(session):
+    # TODO: This needs to be mostly rewritten to follow the template of
+    # enrich_bugcontext_graph or whatever it's called
 
-@museumpiece
-def enrich_bug_network(session):
-    """
-    This function fills in variables relating to the focal bug's position
-    in the network, such as...
-        bug_constraint_prior_month
-        bug_effective_size_churn_past_monthly_avg
-        etc.
-    """
+    from src.debuggers import Debugger
+    varnames = [
+        'constraint', 'clustering', 'indegree', 'outdegree', 'betweenness',
+        'effectivesize', 'efficiency', 'alter_churn', 'effective_size_churn',
+    ]
+    cumulative_vars = ['alter_churn', 'effective_size_churn']
 
-    # Hoo boy. This is kind of tricky. Basically, we need to keep two different
-    # sets of running averages because of our overlapping month windows. Probably
-    # should apply a higher level abstraction here, but whatever.
-    # bug id -> variable -> float value
-    even_bug_to_graphvars = defaultdict(lambda: defaultdict(float))
-    odd_bug_to_graphvars = defaultdict(lambda: defaultdict(float))
-    accs = [even_bug_to_graphvars, odd_bug_to_graphvars]
+    assignees = session.query(distinct(Bug.assignee)).filter(Bug.assignee.nirc > 0)
+
+    # dbid -> varname -> accumulated value
+    even_db_to_graphvars = defaultdict(lambda: defaultdict(float))
+    odd_db_to_graphvars = defaultdict(lambda: defaultdict(float))
+    accs = [even_db_to_graphvars, odd_db_to_graphvars]
     acc_index = 0
     prev_months_counter = doublecount(1)
     graph = None
@@ -219,10 +229,91 @@ def enrich_bug_network(session):
             graph = next_graph
             next_graph = MozGraph.load(nextmonth, session)
 
+        # STEP 1: ??????????????
+
+
+
+
+
+
+
+
+
+    for dbid in session.query(distinct(Bug.assignee_id)):
+        debugger = session.query(Debugger).filter_by(id=dbid).scalar()
+        # All these vars are calculated wrt the irc graph, so if this debugger
+        # doesn't appear in the IRC network, then skip him
+        if debugger.nirc == 0:
+            continue
+
+    for dbid in session.query(distinct(Bug.assignee_id)):
+        debugger = session.query(Debugger).filter_by(id=dbid).scalar()
+        firstmonth = debugger.firstmonth
+        assert firstmonth is not None
+        attr_to_total = {'constraint':0, 'closeness': 0, 'clustering':0}
+        # Invariant: this refers to the number of months over which the above dict has
+        # been accumulated
+        nmonths = 0
+
+        month_nextmonth = monthpairs(session.query(Month). \
+            filter(Month.first >= firstmonth.first). \
+            order_by(Month.first))
+        for (month, nextmonth) in month_nextmonth:
+
+            dm = session.query(DebuggerMonth).filter_by(dbid=dbid).filter_by(monthid=month.id).scalar()
+            for attr in attr_to_total:
+                # TODO: Fill me in. But I'm too mentally exhausted for this. This is rly non-trivial.
+                raise NotImplementedError()
+
+                # ASSERTION: we now have the constraint, closeness etc. for the current month
+                # And the past monthly average available with attr_to_total
+
+def enrich_bug_network(session):
+    """
+    This function fills in variables relating to the focal bug's position
+    in the network, such as...
+        bug_constraint_prior_month
+        bug_effective_size_churn_past_monthly_avg
+        etc.
+    """
+
+    # Hoo boy. This is kind of tricky. Basically, we need to keep two different
+    # sets of running averages because of our overlapping month windows. Probably
+    # should apply a higher level abstraction here, but whatever.
+    # bug id -> variable -> float value
+    even_bug_to_graphvars = defaultdict(lambda: defaultdict(float))
+    odd_bug_to_graphvars = defaultdict(lambda: defaultdict(float))
+    accs = [even_bug_to_graphvars, odd_bug_to_graphvars]
+    acc_index = 0
+    # This was totally fucking wrong. Each bug needs to have its own count based
+    # on when it first appears in the network. You fucking suck.
+    prev_months_counter = doublecount(1)
+    # This will keep a non-positive int that should be added to prev_months_counter
+    # to get the actual number of past months for a given bug.
+    # Ugh and we have to keep 2 again. This is the worst.
+    bug_to_offset_dicts = [defaultdict(int), defaultdict(int)]
+    graph = None
+    next_graph = None
+    for (month, nextmonth) in monthpairs(session.query(Month).order_by(Month.first)):
+        acc = accs[acc_index]
+        acc_index = (acc_index+1)%2
+        bug_to_offset = bug_to_offset_dicts[acc_index]
+        npastmonths = prev_months_counter.next()
+
+        # Need to create both graphs from scratch on the first iteration
+        if graph is None:
+            graph = MozGraph.load(month, session)
+            next_graph = MozGraph.load(nextmonth, session)
+        else:
+            graph = next_graph
+            next_graph = MozGraph.load(nextmonth, session)
+
         for bug in session.query(Bug):
             bm = session.query(BugMonth).filter_by(monthid=nextmonth.id).\
                 filter_by(bugid=bug.bzid).scalar()
             if bm is None:
+                # TODO? I should maybe ensure that this isn't getting decremented after a bug is first encountered
+                bug_to_offset[bug.id] -= 1
                 continue
             try:
                 vertex = graph[bug]
@@ -251,8 +342,8 @@ def enrich_bug_network(session):
                 avg_name = 'bug_' + varname + '_past_monthly_avg'
 
                 setattr(bm, prior_name, locals()[varname])
-
-                avg = acc[bug.id][varname]/npastmonths
+                avg_denom = float(npastmonths + bug_to_offset[bug.id])
+                avg = acc[bug.id][varname]/avg_denom
 
                 setattr(bm, avg_name, avg)
 
@@ -486,39 +577,6 @@ def enrich_bugcontext_graph(session):
 
     session.commit()
 
-
-def enrich_assignee_graph(session):
-    """
-    for each assignee (of any bug):
-        for each month from beginning to end:
-            accumulate a monthly average of things
-            if there are any bugmonths with this debugger as assignee, save vars
-    """
-    # TODO: This needs to be mostly rewritten to follow the template of
-    # enrich_bugcontext_graph or whatever it's called
-
-    from src.debuggers import Debugger
-    for dbid in session.query(distinct(Bug.assignee_id)):
-        debugger = session.query(Debugger).filter_by(id=dbid).scalar()
-        firstmonth = debugger.firstmonth
-        assert firstmonth is not None
-        attr_to_total = {'constraint':0, 'closeness': 0, 'clustering':0}
-        # Invariant: this refers to the number of months over which the above dict has
-        # been accumulated
-        nmonths = 0
-
-        month_nextmonth = monthpairs(session.query(Month).\
-        filter(Month.first >= firstmonth.first).\
-        order_by(Month.first))
-        for (month, nextmonth) in month_nextmonth:
-
-            dm = session.query(DebuggerMonth).filter_by(dbid=dbid).filter_by(monthid=month.id).scalar()
-            for attr in attr_to_total:
-                # TODO: Fill me in. But I'm too mentally exhausted for this. This is rly non-trivial.
-                raise NotImplementedError()
-
-            # ASSERTION: we now have the constraint, closeness etc. for the current month
-            # And the past monthly average available with attr_to_total
 
 def monthpairs(months):
     """[Jan, Jan.5, Feb, Feb.5, Mar...] ->

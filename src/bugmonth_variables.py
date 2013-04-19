@@ -25,6 +25,7 @@ from debuggermonth import DebuggerMonth
 from utils import *
 import itertools
 from collections import defaultdict
+import logging
 
 MONTHDELTA = datetime.timedelta(days=28)
 
@@ -196,28 +197,37 @@ class BugMonth(Base):
     _age_in_months = Column(Float)
 
 def enrich_assignee_graph(session):
-    # TODO: This needs to be mostly rewritten to follow the template of
-    # enrich_bugcontext_graph or whatever it's called
-
-    from src.debuggers import Debugger
+    """
+    Okay, so basically this sets assignee graph variables like
+    assignee_constraint_prior_month etc.. To do this efficiently, we need to
+    do some crazy, stupid, beautiful things.
+    :param session: EWISOTT
+    :return: None
+    """
     varnames = [
         'constraint', 'clustering', 'indegree', 'outdegree', 'betweenness',
         'effectivesize', 'efficiency', 'alter_churn', 'effective_size_churn',
     ]
     cumulative_vars = ['alter_churn', 'effective_size_churn']
 
-    assignees = session.query(distinct(Bug.assignee)).filter(Bug.assignee.nirc > 0)
-
+    #assignees = [db for db in session.query(distinct(Bug.assignee)).all() if db.nirc > 0]
+    assignees = set([bug.assignee for bug in session.query(Bug)])
+    logging.info("Found %d unique assignees" % (len(assignees)))
+    assignees = [assignee for assignee in assignees if assignee is not None and assignee.nirc > 0]
+    logging.info("Enriching %d assignees who also chat" % (len(assignees)))
     # dbid -> varname -> accumulated value
-    even_db_to_graphvars = defaultdict(lambda: defaultdict(float))
-    odd_db_to_graphvars = defaultdict(lambda: defaultdict(float))
+    even_db_to_graphvars = defaultdict(lambda: defaultdict(list))
+    odd_db_to_graphvars = defaultdict(lambda: defaultdict(list))
     accs = [even_db_to_graphvars, odd_db_to_graphvars]
     acc_index = 0
     prev_months_counter = doublecount(1)
+    db_to_offset_dicts = [defaultdict(int), defaultdict(int)] # TODO : Do I need this?
     graph = None
     next_graph = None
+    found_ass_ids = set([])
     for (month, nextmonth) in monthpairs(session.query(Month).order_by(Month.first)):
         acc = accs[acc_index]
+        db_to_offset = db_to_offset_dicts[acc_index]
         acc_index = (acc_index+1)%2
         npastmonths = prev_months_counter.next()
 
@@ -229,45 +239,60 @@ def enrich_assignee_graph(session):
             graph = next_graph
             next_graph = MozGraph.load(nextmonth, session)
 
-        # STEP 1: ??????????????
+        # STEP 1: update our counts for each assignee
+        for ass in assignees:
+            try:
+                vertex = graph[ass]
+                found_ass_ids.add(ass.id)
+            except KeyError:
+                # This assignee hasn't showed up in the network yet, so don't hit him with zeroes
+                if ass.id not in found_ass_ids:
+                    continue
+                else:
+                    # Joel sayeth: add zeroes for intermediate gaps
+                    for varname in varnames:
+                        acc[ass.id][varname].append(0)
+                    continue
+
+            # 1a: Calculate the vars associated with this debugger
+            constraint = vertex.constraint()[0]
+            clustering = graph.g.transitivity_local_undirected([vertex])[0]
+            indegree = vertex.indegree()
+            outdegree = vertex.outdegree()
+            betweenness = vertex.betweenness()
+            effectivesize = graph.effective_size(vertex)
+            efficiency = graph.efficiency(vertex)
+            alter_churn = MozGraph.alter_churn(ass, graph, next_graph)
+            effective_size_churn = MozGraph.effective_size_churn(ass, graph, next_graph)
+
+            # 1b: update accumulator
+            for varname in varnames:
+                value = locals()[varname]
+                acc[ass.id][varname].append(value)
+
+
+        # STEP 2: set bm variables for all bms on this month
+        for bm in session.query(BugMonth).filter_by(month=nextmonth):
+            if bm.assignee is None:
+                continue
+
+            for varname in varnames:
+                prior_name = 'assignee_' + varname + '_prior_month'
+                avg_name = 'assignee_' + varname + '_past_monthly_avg'
+                cum_name = 'assignee_' + varname + '_cumulative'
+
+                vals = acc[bm.assigneeid][varname]
+                setattr(bm, prior_name, vals[-1])
+                setattr(bm, avg_name, sum(vals)/float(len(vals)))
+                if varname in cumulative_vars:
+                    setattr(bm, cum_name, sum(vals))
+
+    session.commit()
 
 
 
 
-
-
-
-
-
-    for dbid in session.query(distinct(Bug.assignee_id)):
-        debugger = session.query(Debugger).filter_by(id=dbid).scalar()
-        # All these vars are calculated wrt the irc graph, so if this debugger
-        # doesn't appear in the IRC network, then skip him
-        if debugger.nirc == 0:
-            continue
-
-    for dbid in session.query(distinct(Bug.assignee_id)):
-        debugger = session.query(Debugger).filter_by(id=dbid).scalar()
-        firstmonth = debugger.firstmonth
-        assert firstmonth is not None
-        attr_to_total = {'constraint':0, 'closeness': 0, 'clustering':0}
-        # Invariant: this refers to the number of months over which the above dict has
-        # been accumulated
-        nmonths = 0
-
-        month_nextmonth = monthpairs(session.query(Month). \
-            filter(Month.first >= firstmonth.first). \
-            order_by(Month.first))
-        for (month, nextmonth) in month_nextmonth:
-
-            dm = session.query(DebuggerMonth).filter_by(dbid=dbid).filter_by(monthid=month.id).scalar()
-            for attr in attr_to_total:
-                # TODO: Fill me in. But I'm too mentally exhausted for this. This is rly non-trivial.
-                raise NotImplementedError()
-
-                # ASSERTION: we now have the constraint, closeness etc. for the current month
-                # And the past monthly average available with attr_to_total
-
+@museumpiece
 def enrich_bug_network(session):
     """
     This function fills in variables relating to the focal bug's position

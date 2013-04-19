@@ -148,6 +148,19 @@ class MozGraph(object):
         news = curr_disconns.difference(prior_disconns)
         return len(news)
 
+    @staticmethod
+    def alter_churn(entity, earlygraph, lategraph):
+        e_vertex = earlygraph[entity]
+        try:
+            l_vertex = lategraph[entity]
+        except KeyError:
+            return 0
+
+        e_neighbors = set(e_vertex.neighbors())
+        l_neighbours = set(l_vertex.neighbours())
+        news = l_neighbours.difference(e_neighbors)
+        return len(news)
+
 
     def efficiency(self, vertex):
         """Another var that igraph doesn't come with.

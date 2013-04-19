@@ -33,10 +33,13 @@ class Debugger(Base):
     bugtoucher = Column(Boolean)
     # The first month in which this debugger touches a bug.
     firstmonthid = Column(Integer, ForeignKey('months.id'))
+    # The id of the first month in which this debugger chats.
+    #firstircmonthid = Column(Integer, ForeignKey('months.id'))
 
     # I made this one-to-one, right? Shaky on syntax
     mozillian = relationship("Mozillian", uselist=False, backref=backref("debugger"))
-    firstmonth = relationship("Month")
+    firstmonth = relationship("Month", foreign_keys=[firstmonthid])
+    #firstircmonth = relationship("Month", foreign_keys=[firstircmonthid])
 
     linktype = None # Do I need this column?
 

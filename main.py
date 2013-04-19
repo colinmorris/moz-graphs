@@ -66,4 +66,4 @@ def populate_dm():
 
 
 import src.bugmonth_variables as bm
-enrich = bm.enrich_bug_network
+enrich = bm.enrich_assignee_graph

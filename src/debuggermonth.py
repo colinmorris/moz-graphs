@@ -18,6 +18,9 @@ class DebuggerMonth(Base):
     Stores information about a debugger's position in the network during a given month.
 
     (In practice, the table will probably only contain debuggers who have touched a bug)
+
+    If a debugger is not active on IRC during a particular month, then there will not
+    be a corresponding DM for that (month, debugger) pair.
     """
 
     __tablename__= 'debuggermonths'
@@ -46,6 +49,15 @@ class DebuggerMonth(Base):
 
     debugger = relationship("Debugger")
     month = relationship('Month')
+
+    def past_monthly_avg(self, var, session):
+        """
+        :param var: one of "constraint", "closeness" etc.
+        :param session:
+        :return: The average of var over the current month and all previous months
+            up to when the debugger first entered the IRC network.
+        """
+        pass
 
 
 @museumpiece

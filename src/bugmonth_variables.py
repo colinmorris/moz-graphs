@@ -196,6 +196,44 @@ class BugMonth(Base):
     # Float so that we can use half-months. Or maybe even other fractions?
     _age_in_months = Column(Float)
 
+def enrich_bugs_debuggers_graph(session):
+    """
+    for each bugmonth:
+        get the set of debuggers active on this bug during this month
+        get their constraints etc. for the previous month and store them
+        for each month before that:
+            add their constraints etc. for that month to a running sum
+        save the average
+    """
+    # YOUAREHERE
+    varnames = [
+        'constraint', 'closeness', 'clustering', 'indegree', 'outdegree',
+        'betweenness', 'effective_size', 'efficiency', 'alter_churn',
+        'effective_size_churn',
+                ]
+    cum_varnames = ['alter_churn', 'effective_size_churn']
+    from src.debuggers import Debugger
+    for bm in session.query(BugMonth):
+        # 1) Get the debuggers for this bugmonth
+        dbids = session.query(distinct(BugEvent.dbid)).\
+            filter_by(bzid=bm.bugid).\
+            filter(BugEvent.date < bm.month.first).\
+            filter(BugEvent.date >= bm.month.first - MONTHDELTA)
+
+        debuggers = [session.query(Debugger).filter_by(id=dbid) for dbid in dbids]
+        # Only take talkative debuggers
+        debuggers = [db for db in debuggers if db.nirc > 0]
+        varname_to_sum = dict((name, 0) for name in varnames)
+
+        for debugger in debuggers:
+            # query debugger months for the last value
+            # save it
+            # query debugger months for the sum
+            # save it and the average, accounting intelligently for gaps
+            ????
+            profit
+
+
 @museumpiece
 def enrich_assignee_graph(session):
     """

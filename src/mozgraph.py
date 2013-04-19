@@ -157,7 +157,7 @@ class MozGraph(object):
             return 0
 
         e_neighbors = set(e_vertex.neighbors())
-        l_neighbours = set(l_vertex.neighbours())
+        l_neighbours = set(l_vertex.neighbors())
         news = l_neighbours.difference(e_neighbors)
         return len(news)
 

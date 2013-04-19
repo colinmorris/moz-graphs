@@ -196,6 +196,7 @@ class BugMonth(Base):
     # Float so that we can use half-months. Or maybe even other fractions?
     _age_in_months = Column(Float)
 
+@museumpiece
 def enrich_assignee_graph(session):
     """
     Okay, so basically this sets assignee graph variables like
@@ -273,7 +274,7 @@ def enrich_assignee_graph(session):
 
         # STEP 2: set bm variables for all bms on this month
         for bm in session.query(BugMonth).filter_by(month=nextmonth):
-            if bm.assignee is None:
+            if bm.assignee is None or bm.assignee.nirc == 0:
                 continue
 
             for varname in varnames:
@@ -282,8 +283,13 @@ def enrich_assignee_graph(session):
                 cum_name = 'assignee_' + varname + '_cumulative'
 
                 vals = acc[bm.assigneeid][varname]
-                setattr(bm, prior_name, vals[-1])
-                setattr(bm, avg_name, sum(vals)/float(len(vals)))
+                try:
+                    setattr(bm, prior_name, vals[-1])
+                    setattr(bm, avg_name, sum(vals)/float(len(vals)))
+                except IndexError:
+                    # The assignee hasn't entered the IRC network yet, but will later
+                    setattr(bm, prior_name, None)
+                    setattr(bm, avg_name, None)
                 if varname in cumulative_vars:
                     setattr(bm, cum_name, sum(vals))
 

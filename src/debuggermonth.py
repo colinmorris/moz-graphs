@@ -30,10 +30,6 @@ class DebuggerMonth(Base):
     dbid = Column(ForeignKey("debuggers.id"))
     monthid = Column(ForeignKey('months.id'))
 
-    GRAPH_METRICS = ["constraint", "closeness", "clustering",
-                     "indegree", "outdegree", "betweenness", "effective_size",
-                     ]
-
     # NB: Unless otherwise specified, these are all with respect to the IRC network rather than the full network
     constraint = Column(Float)
     closeness = Column(Float)
@@ -44,21 +40,51 @@ class DebuggerMonth(Base):
     effective_size = Column(Float)
     # TODO
     efficiency = Column(Float) # TODO: This is hard to calcualte. Let's leave it for later.
-    churn = Column(Integer) # TODO: This should be on the full graph, not on just the IRC graph
+    churn = Column(Integer) # DEAD
+    alter_churn = Column(Integer)# TODO: This should be on the full graph, not on just the IRC graph
     nreported = Column(Integer) # TODO: Not IRC
+    effective_size_churn = Column(Integer)
 
     debugger = relationship("Debugger")
     month = relationship('Month')
 
-    def past_monthly_avg(self, var, session):
-        """
-        :param var: one of "constraint", "closeness" etc.
-        :param session:
-        :return: The average of var over the current month and all previous months
-            up to when the debugger first entered the IRC network.
-        """
-        pass
+@museumpiece
+def bandaid(session):
+    """Fill in efficiency, alter_churn, and effective_size_churn
+    """
+    from bugmonth_variables import monthpairs
+    months = session.query(Month)
+    lastgraph = None
+    graph = None
+    first = True # Do something special on the first iter
+    for (lastmonth, month) in monthpairs(months):
 
+        graph = MozIRCGraph.load(month, session)
+        if lastgraph is None: # This should only happen on the firs iter
+            assert first
+            lastgraph = MozIRCGraph.load(lastmonth, session)
+
+
+        for (dbid, vertex) in graph.dbid_to_vertex.iteritems():
+            dm = session.query(DebuggerMonth).filter_by(monthid=month.id).\
+                filter_by(dbid=dbid).scalar()
+            if dm is None:
+                continue
+
+            dm.efficiency = graph.efficiency(vertex)
+            dm.alter_churn = MozGraph.alter_churn(dbid, lastgraph, graph)
+            dm.effective_size_churn = MozGraph.effective_size_churn(dbid, lastgraph, graph)
+
+            if first:
+                dm.efficiency = lastgraph.efficiency(vertex)
+                dm.alter_churn = None
+                dm.effective_size_churn = None
+
+        first = False
+
+
+        lastgraph = graph
+    session.commit()
 
 @museumpiece
 def populate_debuggermonths(session):

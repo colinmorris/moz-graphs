@@ -37,6 +37,16 @@ class Month(Base):
     def bugmonths(self, session):
         pass
 
+    def prev(self, session):
+        """Return the latest preceding NON-OVERLAPPING month, or None if none
+        exists.
+        """
+        #if self.id <= 2:
+        #    raise ValueError("No previous month in table.")
+        last = session.query(Month).filter_by(id = self.id-2).scalar()
+        assert last is None or (self.first - last.first).days == 28
+        return last
+
     def get_network(self):
         raise NotImplementedError
 

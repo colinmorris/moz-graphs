@@ -1,5 +1,5 @@
 __author__ = 'colin'
-from igraph import Graph
+from igraph import Graph, Vertex
 import pickle
 import os
 from config import *
@@ -140,26 +140,52 @@ class MozGraph(object):
         """
         # We're guaranteed that there's a node for the given entity in the earlygraph,
         # but not in the late graph
-        prior_disconns = earlygraph.disconnected_alters(entity)
+        try:
+            prior_disconns = earlygraph.disconnected_alters(entity)
+        except KeyError:
+            prior_disconns = None
         try:
             curr_disconns = lategraph.disconnected_alters(entity)
         except KeyError:
+            curr_disconns = None
+
+        if curr_disconns is None and prior_disconns is None:
+            return None
+        elif curr_disconns is None:
             return 0
-        news = curr_disconns.difference(prior_disconns)
-        return len(news)
+        elif prior_disconns is None:
+            return len(curr_disconns)
+        else:
+            news = curr_disconns.difference(prior_disconns)
+            return len(news)
 
     @staticmethod
     def alter_churn(entity, earlygraph, lategraph):
-        e_vertex = earlygraph[entity]
+        try:
+            e_vertex = earlygraph[entity]
+        except KeyError:
+            e_vertex = None
         try:
             l_vertex = lategraph[entity]
         except KeyError:
+            l_vertex = None
+
+        if e_vertex is None and l_vertex is None:
+            return None
+
+        elif e_vertex is None:
+            # All late neighbours are new then
+            return len(set(l_vertex.neighbors()))
+
+        elif l_vertex is None:
+            # There are no new neighbours
             return 0
 
-        e_neighbors = set(e_vertex.neighbors())
-        l_neighbours = set(l_vertex.neighbors())
-        news = l_neighbours.difference(e_neighbors)
-        return len(news)
+        else:
+            e_neighbors = set(e_vertex.neighbors())
+            l_neighbours = set(l_vertex.neighbors())
+            news = l_neighbours.difference(e_neighbors)
+            return len(news)
 
 
     def efficiency(self, vertex):
@@ -168,6 +194,8 @@ class MozGraph(object):
         = effective size normed by actual size (i.e. eff_size/n_neighbours)
         """
         # get all nodes linked to vertex
+        assert vertex['id'] in self.dbid_to_vertex
+        assert self.dbid_to_vertex[vertex['id']] == vertex
         neighbours = self.g.neighbors(vertex)
         return self.effective_size(vertex)/(len(neighbours)+0.0)
 
@@ -179,31 +207,10 @@ class MozGraph(object):
         """If we already have a pickled graph for this month, load it. Otherwise, load
         one from scratch.
         """
-        try:
-            res = cls.load_pickled(month)
-            # We definitely can't use the pickled session or month though!
-            # Though technically I think we only need the session for building the graph?
-            res.session = session
-            res.month = month
-            return res
-        except IOError:
-            return MozGraph(month, session)
-
-
-    # XXX: Yeah, it doesn't work. Rather than spending hours trying to save minutes of the
-    # computer's time, let's just leave this and create graphs from scratch every time we
-    # need them.
-    @classmethod
-    def load_pickled(cls, month):
-        # XXX: I'm not sure if this will work, since we're pickling some weird stuff.
-        # Maybe del session? And other weird stuff.
-        f = open(cls.fname(month), 'w')
-        return pickle.load(f)
+        return cls(month, session)
 
     def save(self):
-        f = open(self.fname(self.month), 'w')
-        pickle.dump(self, f)
-        f.close()
+        return
 
 class MozIRCGraph(MozGraph):
     """A graph of just debuggers during a particular month. The only links are
@@ -216,6 +223,8 @@ class MozIRCGraph(MozGraph):
 
     def __getitem__(self, item):
         """Shorthand for accessing the vertex associated with a particular
-        debugger id.
+        debugger id. Can also pass in a debugger, for convenience.
         """
+        if isinstance(item, Debugger):
+            return self.dbid_to_vertex[item.id]
         return self.dbid_to_vertex[item]

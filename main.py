@@ -12,6 +12,7 @@ __author__ = 'colin'
 
 from src import utils
 import sys
+import logging
 
 def bug_reported_monkeypatch(session):
     """This is not a correct usage of the term "monkey patch". I just like it
@@ -64,6 +65,9 @@ def populate_dm():
     session.commit()
 
 
+logger = logging.getLogger()
+logger.setLevel('INFO')
+FORMAT = '%(asctime)s [%(levelname)s]: %(message)s'
+logging.basicConfig(format=FORMAT)
 
-import src.bugmonth_variables as bm
-enrich = bm.enrich_assignee_graph
+from src.bugmonth_variables import enrich_bugs_debuggers_graph as enrich

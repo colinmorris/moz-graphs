@@ -114,10 +114,6 @@ class BugMonth(Base):
     network_density_prior_month = Column(Float)
     network_clustering_prior_month = Column(Float)
 
-    ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##############
-    ############ (unless otherwise noted) ############
-    ############ EVERYTHING BELOW IS NOT  ############
-
     # Bug network stuff
     bug_constraint_prior_month = Column(Float)
     bug_constraint_past_monthly_avg = Column(Float)
@@ -171,6 +167,9 @@ class BugMonth(Base):
     assignee_effective_size_churn_past_monthly_avg = Column(Float)
     assignee_effective_size_churn_cumulative = Column(Float)
 
+    ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##############
+    ############ (unless otherwise noted) ############
+    ############ EVERYTHING BELOW IS NOT  ############
 
     # __BUG'S DEBUGGERS__
     ndebuggers_prior_month = Column(Integer)
@@ -182,7 +181,40 @@ class BugMonth(Base):
     # TODO: Is this overall? And fill in average variance etc. etc.
     nreported_bugs_prior_month = Column(Integer)
 
-    #debuggers_bugs_contributedto
+    # _Bug's debuggers network_
+    bugs_debuggers_constraint_prior_month = Column(Float)
+    bugs_debuggers_constraint_past_monthly_avg = Column(Float)
+
+    bugs_debuggers_closeness_prior_month = Column(Float)
+    bugs_debuggers_closeness_past_monthly_avg = Column(Float)
+
+    bugs_debuggers_clustering_prior_month = Column(Float)
+    bugs_debuggers_clustering_past_monthly_avg = Column(Float)
+
+    bugs_debuggers_indegree_prior_month = Column(Float)
+    bugs_debuggers_indegree_past_monthly_avg = Column(Float)
+
+    bugs_debuggers_outdegree_prior_month = Column(Float)
+    bugs_debuggers_outdegree_past_monthly_avg = Column(Float)
+
+    bugs_debuggers_betweenness_prior_month = Column(Float)
+    bugs_debuggers_betweenness_past_monthly_avg = Column(Float)
+
+    bugs_debuggers_effective_size_prior_month = Column(Float)
+    bugs_debuggers_effective_size_past_monthly_avg = Column(Float)
+
+    bugs_debuggers_efficiency_prior_month = Column(Float)
+    bugs_debuggers_efficiency_past_monthly_avg = Column(Float)
+
+    bugs_debuggers_alter_churn_prior_month = Column(Float)
+    bugs_debuggers_alter_churn_past_monthly_avg = Column(Float)
+    bugs_debuggers_alter_churn_cumulative = Column(Float)
+
+    bugs_debuggers_effective_size_churn_prior_month = Column(Float)
+    bugs_debuggers_effective_size_churn_past_monthly_avg = Column(Float)
+    bugs_debuggers_effective_size_churn_cumulative = Column(Float)
+
+
 
     bug = relationship("Bug")
     month = relationship("Month")
@@ -196,6 +228,7 @@ class BugMonth(Base):
     # Float so that we can use half-months. Or maybe even other fractions?
     _age_in_months = Column(Float)
 
+@museumpiece
 def enrich_bugs_debuggers_graph(session):
     """
     for each bugmonth:
@@ -205,33 +238,94 @@ def enrich_bugs_debuggers_graph(session):
             add their constraints etc. for that month to a running sum
         save the average
     """
-    # YOUAREHERE
     varnames = [
         'constraint', 'closeness', 'clustering', 'indegree', 'outdegree',
         'betweenness', 'effective_size', 'efficiency', 'alter_churn',
         'effective_size_churn',
                 ]
     cum_varnames = ['alter_churn', 'effective_size_churn']
+
     from src.debuggers import Debugger
+    bmcount = 0
+    interval = 10
     for bm in session.query(BugMonth):
+        bmcount += 1
+        if bmcount % interval == 0:
+            logging.info("Done %d bugmonths" % (bmcount)) # Off by one but I don't care
+            interval = min(1000, interval*10)
+
         # 1) Get the debuggers for this bugmonth
         dbids = session.query(distinct(BugEvent.dbid)).\
             filter_by(bzid=bm.bugid).\
             filter(BugEvent.date < bm.month.first).\
             filter(BugEvent.date >= bm.month.first - MONTHDELTA)
 
-        debuggers = [session.query(Debugger).filter_by(id=dbid) for dbid in dbids]
+        debuggers = [session.query(Debugger).filter_by(id=dbid[0]).scalar() for dbid in dbids]
         # Only take talkative debuggers
         debuggers = [db for db in debuggers if db.nirc > 0]
+        # This actually maps variables names to the sum of averages over a particular
+        # number of months. This is as silly as it sounds.
         varname_to_sum = dict((name, 0) for name in varnames)
 
-        for debugger in debuggers:
-            # query debugger months for the last value
-            # save it
-            # query debugger months for the sum
-            # save it and the average, accounting intelligently for gaps
-            ????
-            profit
+        currmonth = bm.month.prev(session)
+        found_prior = False
+        nmonths = 0
+        while currmonth is not None:
+
+            # 1. Filter out debuggers that are no longer relevant because of time of entry into IRC network
+            def relevant(d):
+                entry = session.query(func.min(DebuggerMonth.monthid)).filter_by(dbid=d.id).scalar()
+                return entry <= currmonth.id
+            debuggers = filter(relevant, debuggers)
+            if debuggers == []:
+                nmonths += 1
+                currmonth = currmonth.prev(session)
+                continue
+
+            # 2. Get sums of vars for this month
+            # varname_to_sum keeps a macro-average, this keeps the 'local average'
+            local_sums = dict((name, 0) for name in varnames)
+            for db in debuggers:
+                dm = session.query(DebuggerMonth).filter_by(dbid=db.id).\
+                    filter_by(monthid=currmonth.id).scalar()
+                if dm is None:
+                    continue
+                for varname in varnames:
+                    local_sums[varname] += getattr(dm, varname) or 0 # This is kind of a cheat
+
+            # 3 Convert those sums to avgs and add them to running sum
+            for varname in varnames:
+                avg = local_sums[varname]/len(debuggers)
+                varname_to_sum[varname] += avg
+
+            # 3.5 If this is the first iteration, then store the avgs in the prior month vars
+            if not found_prior:
+                found_prior = True
+                for varname in varnames:
+                    prior_name = 'bugs_debuggers_' + varname + '_prior_month'
+                    value = varname_to_sum[varname]
+                    setattr(bm, prior_name, value)
+
+            # 4 Increment nmonths and take another step backward through months
+            nmonths += 1
+            currmonth = currmonth.prev(session)
+
+        # 5 Set the past_monthly_avg and cumulative vars
+        # 5.1 But if we didn't iterate over any months, then leave them as None
+        if nmonths == 0:
+            continue
+
+        for varname in varnames:
+            avg_name = 'bugs_debuggers_' + varname + '_past_monthly_avg'
+            cum_name = 'bugs_debuggers_' + varname + '_cumulative'
+            avg = varname_to_sum[varname]/(nmonths+0.0)
+            setattr(bm, avg_name, avg)
+            if varname in cum_varnames:
+                setattr(bm, cum_name, varname_to_sum[varname])
+
+
+    session.commit()
+
 
 
 @museumpiece
@@ -301,7 +395,7 @@ def enrich_assignee_graph(session):
             betweenness = vertex.betweenness()
             effectivesize = graph.effective_size(vertex)
             efficiency = graph.efficiency(vertex)
-            alter_churn = MozGraph.alter_churn(ass, graph, next_graph)
+            alter_churn = MozGraph.alter_churn(ass, graph, next_graph) # TODO: I think this is wrong... Wait, no, 2 wrongs made a right...
             effective_size_churn = MozGraph.effective_size_churn(ass, graph, next_graph)
 
             # 1b: update accumulator

@@ -172,14 +172,56 @@ class BugMonth(Base):
     ############ EVERYTHING BELOW IS NOT  ############
 
     # __BUG'S DEBUGGERS__
-    ndebuggers_prior_month = Column(Integer)
+    # _Non-network_
+    ndebuggers_prior_month = Column(Integer) # TODO: deprecated
     ndebuggers_past_monthly_average = Column(Float)
     ndebuggers_past_cumulative = Column(Integer)
 
-    # TODO: Debugger churn
+    bugs_debuggers_n_debuggers_prior_month = Column(Integer)
+    bugs_debuggers_n_debuggers_past_monthly_avg = Column(Float)
+    bugs_debuggers_n_debuggers_cumulative = Column(Integer)
 
-    # TODO: Is this overall? And fill in average variance etc. etc.
-    nreported_bugs_prior_month = Column(Integer)
+    bugs_debuggers_debugger_churn_prior_month = Column(Integer)
+    bugs_debuggers_debugger_churn_past_monthly_avg = Column(Float)
+    bugs_debuggers_debugger_churn_cumulative = Column(Integer)
+
+    bugs_debuggers_n_reported_bugs_prior_month = Column(Integer)
+    bugs_debuggers_n_reported_bugs_past_monthly_avg = Column(Float)
+    bugs_debuggers_n_reported_bugs_cumulative = Column(Integer)
+
+    # NB: Vars below are avg/variance, even for prior month. Monthly avg is an average of avgs.
+    bugs_debuggers_n_bugs_contributed_to_prior_month_avg = Column(Float)
+    bugs_debuggers_n_bugs_contributed_to_prior_month_variance = Column(Float)
+    bugs_debuggers_n_bugs_contributed_to_past_monthly_avg = Column(Float)
+    bugs_debuggers_n_bugs_contributed_to_cumulative = Column(Integer)
+
+    bugs_debuggers_n_history_events_focal_prior_month_avg = Column(Float)
+    bugs_debuggers_n_history_events_focal_prior_month_variance = Column(Float)
+    bugs_debuggers_n_history_events_focal_past_monthly_avg = Column(Float)
+    bugs_debuggers_n_history_events_focal_cumulative = Column(Integer)
+
+    bugs_debuggers_n_history_events_other_prior_month_avg = Column(Float)
+    bugs_debuggers_n_history_events_other_prior_month_variance = Column(Float)
+    bugs_debuggers_n_history_events_other_past_monthly_avg = Column(Float)
+    bugs_debuggers_n_history_events_other_cumulative = Column(Integer)
+
+    bugs_debuggers_n_irc_links_prior_month_avg = Column(Float)
+    bugs_debuggers_n_irc_links_prior_month_variance = Column(Float)
+    bugs_debuggers_n_irc_links_past_monthly_avg = Column(Float)
+    bugs_debuggers_n_irc_links_cumulative = Column(Integer)
+
+    bugs_debuggers_n_irc_messages_directed_prior_month_avg = Column(Float)
+    bugs_debuggers_n_irc_messages_directed_prior_month_variance = Column(Float)
+    bugs_debuggers_n_irc_messages_directed_past_monthly_avg = Column(Float)
+    bugs_debuggers_n_irc_messages_directed_cumulative = Column(Integer)
+
+    bugs_debuggers_n_irc_messages_undirected_prior_month_avg = Column(Float)
+    bugs_debuggers_n_irc_messages_undirected_prior_month_variance = Column(Float)
+    bugs_debuggers_n_irc_messages_undirected_past_monthly_avg = Column(Float)
+    bugs_debuggers_n_irc_messages_undirected_cumulative = Column(Integer)
+
+
+    nreported_bugs_prior_month = Column(Integer) # DEPRECATED
 
     # _Bug's debuggers network_
     bugs_debuggers_constraint_prior_month = Column(Float)
@@ -227,6 +269,168 @@ class BugMonth(Base):
 
     # Float so that we can use half-months. Or maybe even other fractions?
     _age_in_months = Column(Float)
+
+def enrich_bugs_debuggers_avgavg(session):
+    """So called because these vars are averages and averages of averages.
+    """
+    from src.debuggers import Debugger
+    vars = ['n_bugs_contributed_to', 'n_history_events_focal',
+            'n_history_events_other', 'n_irc_links', 'n_irc_messages_directed',]
+            #'n_irc_messages_undirected']
+
+    bmcount = 0
+    interval = 10
+    for bm in session.query(BugMonth):
+        bmcount += 1
+        if bmcount % interval == 0:
+            logging.info("Done %d bugmonths" % (bmcount)) # Off by one but I don't care
+            interval = min(1000, interval*10)
+
+        # 1) Get the debuggers for this bugmonth
+        dbids = session.query(distinct(BugEvent.dbid)).\
+        filter_by(bzid=bm.bugid).\
+        filter(BugEvent.date < bm.month.first).\
+        filter(BugEvent.date >= bm.month.first - MONTHDELTA).all()
+
+        if dbids == []:
+            # Nothing to do here
+            continue
+
+        currmonth = bm.month.prev(session)
+        found_prior = False
+        nmonths = 0
+        varname_to_vals = dict((name, []) for name in vars)
+        # TODO: Stop walking backwards when we get to the bug's reported date?
+        while currmonth is not None:
+            # Calculate stuff
+
+            # N bugs contributed to
+            varname_to_vals['n_bugs_contributed_to'].append(0)
+            for dbid in dbids:
+                nbugs = session.query(distinct(BugEvent.bzid)).filter_by(dbid=dbid).\
+                    filter(BugEvent.date <= currmonth.last).\
+                    filter(BugEvent.date >= currmonth.first).count()
+                varname_to_vals['n_bugs_contributed_to'][-1] += nbugs
+            varname_to_vals['n_bugs_contributed_to'][-1] = \
+                varname_to_vals['n_bugs_contributed_to'][-1] / float(len(dbids))
+
+            # N history events focal
+            if currmonth.last < bm.bug.reported:
+                pass # Don't add anything to our accumulated list
+            else:
+                varname_to_vals['n_history_events_focal'].append(0)
+                for dbid in dbids:
+                    nevents = session.query(BugEvent).filter_by(dbid=dbid).\
+                        filter(BugEvent.date <= currmonth.last).\
+                        filter(BugEvent.date >= currmonth.first).\
+                        filter_by(bzid=bm.bugid).count()
+                    varname_to_vals['n_history_events_focal'][-1] += nevents
+                varname_to_vals['n_history_events_focal'][-1] = \
+                    varname_to_vals['n_history_events_focal'][-1] / float(len(dbids))
+
+            # n history events other
+            varname_to_vals['n_history_events_other'].append(0)
+            for dbid in dbids:
+                nevents = session.query(BugEvent).filter_by(dbid=dbid).\
+                    filter(BugEvent.date <= currmonth.last).\
+                    filter(BugEvent.date >= currmonth.first).\
+                    filter(BugEvent.bzid != bm.bugid).count()
+                varname_to_vals['n_history_events_other'][-1] += nevents
+            varname_to_vals['n_history_events_other'][-1] = \
+                varname_to_vals['n_history_events_other'][-1] / float(len(dbids))
+
+            # n_irc_links
+            varname_to_vals['n_irc_links'].append(0)
+            # YOUAREHERE
+            # n_irc_messages_directed
+            varname_to_vals['n_irc_messages_directed'].append(0)
+            # YOUAREHERE
+
+            # Save prior variables on the first iteration
+
+        # Save aggregate variables
+
+def enrich_bugs_debuggers_nograph(session):
+    """Like below, but filling in the non-graph variables.
+
+    Actually, we're just filling in n_debuggers and debugger_churn, because the
+    others are special.
+    """
+    vars = ['n_debuggers', 'debugger_churn',] #'n_reported_bugs',
+          #  'n_bugs_contributed_to', 'n_history_events_focal',
+          #  'n_history_events_other', 'n_irc_links', 'n_irc_messages_directed',
+          #  'n_irc_messages_undirected']
+    bmcount = 0
+    interval = 10
+    for bm in session.query(BugMonth):
+        bmcount += 1
+        if bmcount % interval == 0:
+            logging.info("Done %d bugmonths" % (bmcount)) # Off by one but I don't care
+            interval = min(1000, interval*10)
+
+        currmonth = bm.month.prev(session)
+        prevmonth = currmonth.prev(session) if currmonth else None # Need this for churn
+        found_prior = False
+        nmonths = 0
+        varname_to_sum = dict((name, 0) for name in vars)
+        # TODO: Stop walking backwards when we get to the bug's reported date?
+        while currmonth is not None:
+
+            # These vars are heterogeneous enough that I'm gonna kind of deal with
+            # them each individually rather than the more structured approach I've
+            # taken elsewhere
+
+            # N DEBUGGERS
+            curr_debugger_ids = set(session.query(distinct(BugEvent.dbid)).\
+                filter(BugEvent.date <= currmonth.last).\
+                filter(BugEvent.date >= currmonth.first).all())
+
+            n_debuggers = len(curr_debugger_ids)
+            varname_to_sum['n_debuggers'] += n_debuggers
+
+            # DEBUGGER CHURN
+            if prevmonth is None:
+                debugger_churn = 0
+            else:
+                prev_debugger_ids = set(session.query(distinct(BugEvent.dbid)).\
+                filter(BugEvent.date <= currmonth.last).\
+                filter(BugEvent.date >= currmonth.first).all())
+                debugger_churn = len(curr_debugger_ids.difference(prev_debugger_ids))
+
+            varname_to_sum['debugger_churn'] += debugger_churn
+
+            # Set prior month vars
+            if not found_prior:
+                found_prior = True
+                for (var, value) in varname_to_sum.items():
+                    prior_name = 'bugs_debuggers_' + var + '_prior_month'
+                    setattr(bm, prior_name, value)
+
+
+
+
+
+            currmonth = prevmonth
+            prevmonth = prevmonth.prev(session) if prevmonth else None
+            nmonths += 1
+
+        if nmonths == 0:
+            continue
+
+        # Now set sumulative and avg vars
+        for (var, sum) in varname_to_sum.items():
+            cum_name = 'bugs_debuggers_' + var + '_cumulative'
+            avg_name = 'bugs_debuggers_' + var + '_past_monthly_avg'
+            setattr(bm, cum_name, sum)
+            denom = nmonths
+            if var == 'debugger_churn':
+                denom -= 1
+            if denom == 0:
+                continue
+            setattr(bm, avg_name, sum/float(denom))
+
+    session.commit()
+
 
 @museumpiece
 def enrich_bugs_debuggers_graph(session):

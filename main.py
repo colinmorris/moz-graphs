@@ -70,4 +70,11 @@ logger.setLevel('INFO')
 FORMAT = '%(asctime)s [%(levelname)s]: %(message)s'
 logging.basicConfig(format=FORMAT)
 
-from src.bugmonth_variables import enrich_bugs_debuggers_graph as enrich
+#from src.bugmonth_variables import enrich_bugs_debuggers_avgavg as avgavg # underway now YOUAREHERE
+
+#from src.bugmonth_variables import enrich_bugs_debuggers_graph as graph
+from src.bugmonth_variables import assignee_nbugs_bandaid as bandaid
+#from src.bugs import Bug
+#from src.undirected_chats import populate_undirected as pop
+
+#add = lambda : Bug.add_reporter_ids(session)

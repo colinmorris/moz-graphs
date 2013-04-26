@@ -18,7 +18,7 @@ from optparse import OptionParser
 import copy
 from utils import valid_nick
 
-CHATLOG_DIR = '../chat_logs'
+CHATLOG_DIR = 'chat_logs'
 CHATLOG_DATE_FORMAT = '%a %b %d %H:%M:%S %Y'
 
 RESULTS_DIR = 'adj'
@@ -61,8 +61,8 @@ class Log(object):
     """A chat log for a single day.
     """
     
-    def __init__(self, logfile):
-        #self.lines = [] # Is this list necessary? I don't think it is.
+    def __init__(self, logfile, lite=False):
+        self.lines = []
         self.exterminators = set()
         opening = logfile.readline().strip()
         date_str = opening[15:]
@@ -85,13 +85,14 @@ class Log(object):
                 print "This is a rare line indeed"
                 print line
                 continue
-            #self.lines.append(lineobj)
+            self.lines.append(lineobj)
             #self.add_exterminator(lineobj.actor)
             if lineobj.actor:
                 self.exterminators.add(lineobj.actor)
-            
-        self.condense_exterminators()
-        self.filter_bad_nicks()
+
+        if not lite:
+            self.condense_exterminators()
+            self.filter_bad_nicks()
         
     def __cmp__(self, other):
         """Compare by date.
@@ -389,7 +390,10 @@ class Exterminator(object):
     def nick(self):
         """We use an exterminator's shortest alias as his canonical nickname.
         """
-        return min(self.aliases, key=lambda alias: len(alias))
+        try:
+            return min(self.aliases, key=lambda alias: len(alias))
+        except ValueError:
+            return None
         
     def __iadd__(self, otherext):
         """Overriding +=. When one Exterminator is added to another, they 

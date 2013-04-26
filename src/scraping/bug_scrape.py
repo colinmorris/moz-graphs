@@ -275,6 +275,10 @@ class BugPage(object):
             self._votes = BugVotes(self.id)
         return self._votes
 
+    @property
+    def reporter_email(self):
+        return self.soup.find(id='bz_show_bug_column_2').table.find("td").span.a['href'].split(':')[-1]
+
 
     def _cache_path(self):
         data_location = src.config.DATA_DIR

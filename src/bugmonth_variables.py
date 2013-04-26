@@ -29,6 +29,9 @@ import logging
 
 MONTHDELTA = datetime.timedelta(days=28)
 
+class DeprecatedColumn(Column):
+    pass
+
 class BugMonth(Base):
     """A sort of join table on bugs and months.
 
@@ -91,6 +94,14 @@ class BugMonth(Base):
     assignee_nirc_received_prior_month = Column(Integer)
     assignee_nirc_received_past_monthly_avg = Column(Float)
     assignee_nirc_received_past_cumulative = Column(Integer)
+
+    assignee_nirc_undirected_prior_month = Column(Integer)
+    assignee_nirc_undirected_past_monthly_avg = Column(Float)
+    assginee_nirc_undirected_cumulative = Column(Integer)
+
+    assignee_nreported_prior_month = Column(Integer)
+    assignee_nreported_past_monthly_avg = Column(Float)
+    assignee_nreported_cumulative = Column(Integer)
 
 
     # __BUG CONTEXT__
@@ -167,15 +178,16 @@ class BugMonth(Base):
     assignee_effective_size_churn_past_monthly_avg = Column(Float)
     assignee_effective_size_churn_cumulative = Column(Float)
 
+
     ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##############
     ############ (unless otherwise noted) ############
     ############ EVERYTHING BELOW IS NOT  ############
 
     # __BUG'S DEBUGGERS__
     # _Non-network_
-    ndebuggers_prior_month = Column(Integer) # TODO: deprecated
-    ndebuggers_past_monthly_average = Column(Float)
-    ndebuggers_past_cumulative = Column(Integer)
+    ndebuggers_prior_month = DeprecatedColumn(Integer) # TODO: deprecated
+    ndebuggers_past_monthly_average = DeprecatedColumn(Float)
+    ndebuggers_past_cumulative = DeprecatedColumn(Integer)
 
     bugs_debuggers_n_debuggers_prior_month = Column(Integer)
     bugs_debuggers_n_debuggers_past_monthly_avg = Column(Float)
@@ -185,9 +197,16 @@ class BugMonth(Base):
     bugs_debuggers_debugger_churn_past_monthly_avg = Column(Float)
     bugs_debuggers_debugger_churn_cumulative = Column(Integer)
 
-    bugs_debuggers_n_reported_bugs_prior_month = Column(Integer)
+    bugs_debuggers_n_reported_bugs_prior_month = Column(Integer) # DEPRECATED. I HATE that sqlite doesn't let me delete columns.
+    bugs_debuggers_n_reported_bugs_prior_month_avg = Column(Float)
+    bugs_debuggers_n_reported_bugs_prior_month_variance = Column(Float)
     bugs_debuggers_n_reported_bugs_past_monthly_avg = Column(Float)
-    bugs_debuggers_n_reported_bugs_cumulative = Column(Integer)
+    bugs_debuggers_n_reported_bugs_cumulative = Column(Integer) # TODO: Can I change this to float?
+
+
+    # XXX TODO FIXME: Most of the below/above vars should have a FLOAT column for cumulative,
+    # because it's a sum of averages. Motherfucker. I guess sqlite is pretty permissive about
+    # typing, right? Let's hope.
 
     # NB: Vars below are avg/variance, even for prior month. Monthly avg is an average of avgs.
     bugs_debuggers_n_bugs_contributed_to_prior_month_avg = Column(Float)
@@ -215,13 +234,13 @@ class BugMonth(Base):
     bugs_debuggers_n_irc_messages_directed_past_monthly_avg = Column(Float)
     bugs_debuggers_n_irc_messages_directed_cumulative = Column(Integer)
 
-    bugs_debuggers_n_irc_messages_undirected_prior_month_avg = Column(Float)
+    bugs_debuggers_n_irc_messages_undirected_prior_month_avg = Column(Float) # TODO
     bugs_debuggers_n_irc_messages_undirected_prior_month_variance = Column(Float)
     bugs_debuggers_n_irc_messages_undirected_past_monthly_avg = Column(Float)
     bugs_debuggers_n_irc_messages_undirected_cumulative = Column(Integer)
 
 
-    nreported_bugs_prior_month = Column(Integer) # DEPRECATED
+    nreported_bugs_prior_month = DeprecatedColumn(Integer) # DEPRECATED
 
     # _Bug's debuggers network_
     bugs_debuggers_constraint_prior_month = Column(Float)
@@ -270,10 +289,175 @@ class BugMonth(Base):
     # Float so that we can use half-months. Or maybe even other fractions?
     _age_in_months = Column(Float)
 
+    @classmethod
+    def select(cls):
+        res = 'SELECT '
+        for col in cls.__table__.columns:
+            if not isinstance(col, DeprecatedColumn):
+                res += col.name + ', '
+
+        res = res[:-2]
+
+        res += ' FROM bugmonths'
+        return res
+
+
+@museumpiece
+def enrich_assignee_lastbandaid(session):
+    # Remaining vars:
+    #   Assignee n reported bugs prior/avg/cumul
+    #   Assignee n unidrected msgs prior/avg/cumul
+    dayone = session.query(func.min(Month.first)).scalar()
+    from src.undirected_chats import UndirectedChat
+    for bm in session.query(BugMonth):
+        ass = bm.assignee
+        if ass is None:
+            continue
+
+        prevmonth = bm.month.prev(session)
+        if prevmonth is None:
+            continue
+        # Reported
+        assreports = session.query(Bug).filter_by(reporter_id=ass.id)
+        reported_prior = assreports.\
+            filter(Bug.reported <= prevmonth.last).\
+            filter(Bug.reported >= prevmonth.first).count()
+        bm.assignee_nreported_prior_month = reported_prior
+
+        reported_cumul = assreports.\
+            filter(Bug.reported <= prevmonth.last).count()
+        bm.assignee_nreported_cumulative = reported_cumul
+
+        ass_age = (prevmonth.last - dayone).days/28.0 # See spec for justification of this
+        #try:
+        #    ass_age = (prevmonth.last - ass.firstmonth.first).days/28.0
+        #except ValueError:
+            # This db has reported
+        bm.assignee_nreported_past_monthly_avg = reported_cumul / ass_age
+
+        # undirected msgs
+        assmessages = session.query(func.sum(UndirectedChat.n)).filter_by(dbid=ass.id).\
+            filter(UndirectedChat.day <= prevmonth.last)
+
+        bm.assignee_nirc_undirected_prior_month = assmessages.\
+            filter(UndirectedChat.day >= prevmonth.first).scalar()
+
+        cumul = assmessages.scalar()
+        bm.assignee_nirc_undirected_cumulative = cumul
+
+        firstirc = session.query(func.min(UndirectedChat.day)).\
+            filter_by(dbid=ass.id).scalar()
+        if firstirc is None:
+            bm.assignee_nirc_undirected_past_monthly_avg = None
+        else:
+            asschatage = (prevmonth.last - firstirc).days / 28.0
+            try:
+                bm.assignee_nirc_undirected_past_monthly_avg = cumul/asschatage
+            except TypeError:
+                logging.warning(u"Debugger %s has a first irc date but no cumulative irc thing!" % (unicode(ass)))
+            except ZeroDivisionError:
+                logging.error(u"Debugger %s has an asschatage of 0. This shouldn't even be possible." % (unicode(ass)))
+
+    session.commit()
+
+@museumpiece
+def enrich_bugs_debuggers_lastbandaid(session):
+    import numpy
+    from src.undirected_chats import UndirectedChat
+    from src.debuggers import Debugger
+    rep = session.query(Bug)
+    undir = session.query(func.sum(UndirectedChat.n))
+    for bm in session.query(BugMonth):
+
+        # 1) Get the debuggers for this bugmonth
+        first = lambda tup: tup[0]
+        # This looks wrong. Why am I looking at debuggers of the prev month?
+        dbids = map(first,
+            session.query(distinct(BugEvent.dbid)).\
+                filter_by(bzid=bm.bugid).\
+                filter(BugEvent.date >= bm.month.first).\
+                filter(BugEvent.date <= bm.month.last).all()
+        ) # TODO: Make subset just for chats
+
+        # dbid -> date of first irc event
+        chatters = {}
+        for dbid in dbids:
+            db = session.query(Debugger).filter_by(id=dbid).scalar()
+            if db.nirc == 0:
+                continue
+            first_irc = session.query(func.min(UndirectedChat.day)).filter_by(dbid=dbid).scalar()
+            if first_irc is None:
+                logging.warning(u"Debugger %s has nirc > 0 but no rows in undirectedchats" % (unicode(db)))
+            else:
+                chatters[dbid] = first_irc
+
+
+
+        if dbids == []:
+            # Nothing to do here
+            continue
+
+        currmonth = bm.month.prev(session)
+        found_prior = False
+        nmonths = 0
+        rep_avgs = [] # TODO: Stopping condition for each of these
+        chat_avgs = []
+        while currmonth is not None:
+            # Calculate stuff
+            nmonths += 1
+            reps = []
+            chats = []
+
+            # Reported
+            for dbid in dbids:
+                nreps = rep.filter_by(reporter_id=dbid).\
+                    filter(Bug.reported <= currmonth.last).\
+                    filter(Bug.reported >= currmonth.first).count()
+                reps.append(nreps)
+
+            # Undirected messages
+            # Exclude debuggers s.t. first irc month > currmonth
+            for (dbid, first) in chatters.iteritems():
+                if first > currmonth.last:
+                    continue
+                nchats = undir.filter_by(dbid=dbid).\
+                    filter(UndirectedChat.day <= currmonth.last).\
+                    filter(UndirectedChat.day >= currmonth.first).scalar()
+                chats.append(nchats or 0)
+
+            rep_avg = numpy.mean(reps)
+            chat_avg = numpy.mean(chats)
+            rep_avgs.append(rep_avg)
+            chat_avgs.append(chat_avg)
+            if not found_prior:
+                found_prior= True
+                bm.bugs_debuggers_n_reported_bugs_prior_month_avg = rep_avg
+                bm.bugs_debuggers_n_reported_bugs_prior_month_variance = numpy.var(reps)
+
+                bm.bugs_debuggers_n_irc_messages_undirected_prior_month_avg = chat_avg
+                bm.bugs_debuggers_n_irc_messages_undirected_prior_month_avg = numpy.var(chats)
+
+            currmonth = currmonth.prev(session)
+
+        if nmonths == 0:
+            continue
+        # Set non-prior vars
+        bm.bugs_debuggers_n_reported_bugs_cumulative = sum(rep_avgs)
+        bm.bugs_debuggers_n_reported_bugs_past_monthly_avg = numpy.mean(rep_avgs)
+
+        bm.bugs_debuggers_n_irc_messages_undirected_past_monthly_avg = numpy.mean(chat_avgs)
+        bm.bugs_debuggers_n_irc_messages_undirected_cumulative = sum(chat_avgs)
+
+    session.commit()
+
+
+
+
+#@museumpiece
 def enrich_bugs_debuggers_avgavg(session):
     """So called because these vars are averages and averages of averages.
     """
-    from src.debuggers import Debugger
+    import numpy
     vars = ['n_bugs_contributed_to', 'n_history_events_focal',
             'n_history_events_other', 'n_irc_links', 'n_irc_messages_directed',]
             #'n_irc_messages_undirected']
@@ -287,10 +471,14 @@ def enrich_bugs_debuggers_avgavg(session):
             interval = min(1000, interval*10)
 
         # 1) Get the debuggers for this bugmonth
-        dbids = session.query(distinct(BugEvent.dbid)).\
-        filter_by(bzid=bm.bugid).\
-        filter(BugEvent.date < bm.month.first).\
-        filter(BugEvent.date >= bm.month.first - MONTHDELTA).all()
+        first = lambda tup: tup[0]
+        dbids = map(first,
+            session.query(distinct(BugEvent.dbid)).\
+                filter_by(bzid=bm.bugid).\
+                filter(BugEvent.date >= bm.month.first).\
+                filter(BugEvent.date <= bm.month.last).all()
+        )
+
 
         if dbids == []:
             # Nothing to do here
@@ -300,9 +488,9 @@ def enrich_bugs_debuggers_avgavg(session):
         found_prior = False
         nmonths = 0
         varname_to_vals = dict((name, []) for name in vars)
-        # TODO: Stop walking backwards when we get to the bug's reported date?
         while currmonth is not None:
             # Calculate stuff
+            varname_to_local_arr = dict((name, []) for name in vars)
 
             # N bugs contributed to
             varname_to_vals['n_bugs_contributed_to'].append(0)
@@ -310,6 +498,8 @@ def enrich_bugs_debuggers_avgavg(session):
                 nbugs = session.query(distinct(BugEvent.bzid)).filter_by(dbid=dbid).\
                     filter(BugEvent.date <= currmonth.last).\
                     filter(BugEvent.date >= currmonth.first).count()
+                if not found_prior:
+                    varname_to_local_arr['n_bugs_contributed_to'].append(nbugs)
                 varname_to_vals['n_bugs_contributed_to'][-1] += nbugs
             varname_to_vals['n_bugs_contributed_to'][-1] = \
                 varname_to_vals['n_bugs_contributed_to'][-1] / float(len(dbids))
@@ -324,8 +514,10 @@ def enrich_bugs_debuggers_avgavg(session):
                         filter(BugEvent.date <= currmonth.last).\
                         filter(BugEvent.date >= currmonth.first).\
                         filter_by(bzid=bm.bugid).count()
+                    if not found_prior:
+                        varname_to_local_arr['n_history_events_focal'].append(nevents)
                     varname_to_vals['n_history_events_focal'][-1] += nevents
-                varname_to_vals['n_history_events_focal'][-1] = \
+                    varname_to_vals['n_history_events_focal'][-1] = \
                     varname_to_vals['n_history_events_focal'][-1] / float(len(dbids))
 
             # n history events other
@@ -335,21 +527,67 @@ def enrich_bugs_debuggers_avgavg(session):
                     filter(BugEvent.date <= currmonth.last).\
                     filter(BugEvent.date >= currmonth.first).\
                     filter(BugEvent.bzid != bm.bugid).count()
+                if not found_prior:
+                    varname_to_local_arr['n_history_events_other'].append(nevents)
                 varname_to_vals['n_history_events_other'][-1] += nevents
             varname_to_vals['n_history_events_other'][-1] = \
                 varname_to_vals['n_history_events_other'][-1] / float(len(dbids))
 
             # n_irc_links
             varname_to_vals['n_irc_links'].append(0)
-            # YOUAREHERE
+            relchats = session.query(Chat).\
+                filter(Chat.date <= currmonth.last).\
+                filter(Chat.date >= currmonth.first)
+            for dbid in dbids:
+                nout = relchats.filter_by(p1=dbid).count()
+                nin = relchats.filter_by(p2=dbid).count()
+                if not found_prior:
+                    varname_to_local_arr['n_irc_links'].append(nout+nin)
+                varname_to_vals['n_irc_links'][-1] += nout + nin
+            varname_to_vals['n_irc_links'][-1] = \
+                varname_to_vals['n_irc_links'][-1] / float(len(dbids))
+
             # n_irc_messages_directed
             varname_to_vals['n_irc_messages_directed'].append(0)
-            # YOUAREHERE
+            for dbid in dbids:
+                nsent = session.query(func.sum(Chat.n)).\
+                    filter_by(p1=dbid).\
+                    filter(Chat.date <= currmonth.last).\
+                    filter(Chat.date >= currmonth.first).scalar() or 0
+                if not found_prior:
+                    varname_to_local_arr['n_irc_messages_directed'].append(nsent)
+                varname_to_vals['n_irc_messages_directed'][-1] += nsent
+            varname_to_vals['n_irc_messages_directed'][-1] = \
+                varname_to_vals['n_irc_messages_directed'][-1] / float(len(dbids))
+
+
 
             # Save prior variables on the first iteration
+            if not found_prior:
+                found_prior = True
+                for varname in vars:
+                    avg_name = 'bugs_debuggers_' + varname + '_prior_month_avg'
+                    variance_name = 'bugs_debuggers_' + varname + '_prior_month_variance'
+                    avg = numpy.mean(varname_to_local_arr[varname])
+                    variance = numpy.var(varname_to_local_arr[varname])
+                    setattr(bm, avg_name, avg)
+                    setattr(bm, variance_name, variance)
+
+            currmonth = currmonth.prev(session)
+            nmonths += 1
 
         # Save aggregate variables
+        for varname in vars:
+            avg_name = 'bugs_debuggers_' + varname + '_past_monthly_avg'
+            cum_name = 'bugs_debuggers_' + varname + '_cumulative'
+            avg = numpy.mean(varname_to_vals[varname])
+            cum = sum(varname_to_vals[varname])
+            setattr(bm, avg_name, avg)
+            setattr(bm, cum_name, cum)
 
+    session.commit()
+
+@museumpiece
 def enrich_bugs_debuggers_nograph(session):
     """Like below, but filling in the non-graph variables.
 
@@ -461,8 +699,8 @@ def enrich_bugs_debuggers_graph(session):
         # 1) Get the debuggers for this bugmonth
         dbids = session.query(distinct(BugEvent.dbid)).\
             filter_by(bzid=bm.bugid).\
-            filter(BugEvent.date < bm.month.first).\
-            filter(BugEvent.date >= bm.month.first - MONTHDELTA)
+            filter(BugEvent.date >= bm.month.first).\
+            filter(BugEvent.date <= bm.month.last)
 
         debuggers = [session.query(Debugger).filter_by(id=dbid[0]).scalar() for dbid in dbids]
         # Only take talkative debuggers
@@ -755,7 +993,7 @@ def enrich_outcome_characteristics(session):
 
     session.commit()
 
-@museumpiece
+#@museumpiece
 def assignee_nbugs_bandaid(session):
     """We didn't add n_bugs in enrich_assignee, so we do it here.
     """
@@ -783,9 +1021,9 @@ def assignee_nbugs_bandaid(session):
         bm.assignee_nbugs_past_cumulative = cumul
         try:
             ass_age = (currmonth.first - ass.firstmonth.first).days/28
-            bm.assignee_nbugs_monthly_avg = cumul/(ass_age+0.0)
+            bm.assignee_nbugs_past_monthly_avg = cumul/(ass_age+0.0)
         except (ZeroDivisionError, AttributeError):
-            bm.assignee_nbugs_monthly_avg = None
+            bm.assignee_nbugs_past_monthly_avg = None
 
     session.commit()
 
@@ -916,11 +1154,11 @@ def enrich_bugcontext_nograph(session):
         for bm in session.query(BugMonth).filter_by(month=nextmonth):
             bm.n_unresolved_bugs_prior_month = n_unresolved
             bm.n_active_bugs_prior_month = n_active
-            bm.n_reported_bugs_prior_month = n_reported
+            bm.n_reported_bugs_prior_month = n_reported # XXX
             bm.n_resolved_bugs_prior_month = n_resolved
 
             bm.n_directed_chats_prior_month = n_directed_chats
-            bm.n_debuggers_prior_month = n_debuggers
+            bm.n_debuggers_prior_month = n_debuggers # XXX
             bm.n_IRC_members_prior_month = n_irc_members
             bm.n_history_events_prior_month = n_history_events
 

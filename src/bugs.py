@@ -24,12 +24,13 @@ class Bug(Base):
     status = Column(String)
     verified = Column(Date)
 
-    # TODO: Update table to add this column (nontrivial)
     # if null then assigned to no-one
     assignee_id = Column(ForeignKey('debuggers.id'), nullable=True)
 
+    reporter_id = Column(ForeignKey('debuggers.id'))
 
-    assignee = relationship("Debugger")
+
+    assignee = relationship("Debugger", foreign_keys=[assignee_id])
 
     def __str__(self):
         return "Bug<%s>" % (self.bzid)
@@ -102,3 +103,17 @@ class Bug(Base):
 
             else:
                 raise Exception("Got two+ debuggers with the same e-mail (%s). This should never happen." % (assigned.email))
+
+    @staticmethod
+    def add_reporter_ids(session):
+        limit = 10
+        n = 0
+        from scraping import bug_scrape
+        for bug in session.query(Bug):
+            bp = bug_scrape.BugPage(bug.id)
+            repmail = bp.reporter_email
+            db = session.query(Debugger).filter_by(email=repmail).scalar()
+            if db is None:
+                continue
+            bug.reporter_id = db.id
+

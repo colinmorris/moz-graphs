@@ -194,8 +194,8 @@ class MozGraph(object):
         = effective size normed by actual size (i.e. eff_size/n_neighbours)
         """
         # get all nodes linked to vertex
-        assert vertex['id'] in self.dbid_to_vertex
-        assert self.dbid_to_vertex[vertex['id']] == vertex
+        assert vertex['id'] in self.dbid_to_vertex or vertex['id'] in self.bid_to_vertex
+        #assert self.dbid_to_vertex[vertex['id']] == vertex
         neighbours = self.g.neighbors(vertex)
         return self.effective_size(vertex)/(len(neighbours)+0.0)
 

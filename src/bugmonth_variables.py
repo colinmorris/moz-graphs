@@ -97,7 +97,8 @@ class BugMonth(Base):
 
     assignee_nirc_undirected_prior_month = Column(Integer)
     assignee_nirc_undirected_past_monthly_avg = Column(Float)
-    assginee_nirc_undirected_cumulative = Column(Integer)
+    assginee_nirc_undirected_cumulative = DeprecatedColumn(Integer)
+    assignee_nirc_undirected_cumulative = Column(Integer)
 
     assignee_nreported_prior_month = Column(Integer)
     assignee_nreported_past_monthly_avg = Column(Float)
@@ -197,7 +198,7 @@ class BugMonth(Base):
     bugs_debuggers_debugger_churn_past_monthly_avg = Column(Float)
     bugs_debuggers_debugger_churn_cumulative = Column(Integer)
 
-    bugs_debuggers_n_reported_bugs_prior_month = Column(Integer) # DEPRECATED. I HATE that sqlite doesn't let me delete columns.
+    bugs_debuggers_n_reported_bugs_prior_month = DeprecatedColumn(Integer) # DEPRECATED. I HATE that sqlite doesn't let me delete columns.
     bugs_debuggers_n_reported_bugs_prior_month_avg = Column(Float)
     bugs_debuggers_n_reported_bugs_prior_month_variance = Column(Float)
     bugs_debuggers_n_reported_bugs_past_monthly_avg = Column(Float)
@@ -360,7 +361,7 @@ def enrich_assignee_lastbandaid(session):
 
     session.commit()
 
-@museumpiece
+#@museumpiece
 def enrich_bugs_debuggers_lastbandaid(session):
     import numpy
     from src.undirected_chats import UndirectedChat
@@ -435,7 +436,7 @@ def enrich_bugs_debuggers_lastbandaid(session):
                 bm.bugs_debuggers_n_reported_bugs_prior_month_variance = numpy.var(reps)
 
                 bm.bugs_debuggers_n_irc_messages_undirected_prior_month_avg = chat_avg
-                bm.bugs_debuggers_n_irc_messages_undirected_prior_month_avg = numpy.var(chats)
+                bm.bugs_debuggers_n_irc_messages_undirected_prior_month_variance = numpy.var(chats)
 
             currmonth = currmonth.prev(session)
 
@@ -453,7 +454,7 @@ def enrich_bugs_debuggers_lastbandaid(session):
 
 
 
-#@museumpiece
+@museumpiece
 def enrich_bugs_debuggers_avgavg(session):
     """So called because these vars are averages and averages of averages.
     """
@@ -587,7 +588,7 @@ def enrich_bugs_debuggers_avgavg(session):
 
     session.commit()
 
-@museumpiece
+#@museumpiece
 def enrich_bugs_debuggers_nograph(session):
     """Like below, but filling in the non-graph variables.
 
@@ -621,7 +622,8 @@ def enrich_bugs_debuggers_nograph(session):
             # N DEBUGGERS
             curr_debugger_ids = set(session.query(distinct(BugEvent.dbid)).\
                 filter(BugEvent.date <= currmonth.last).\
-                filter(BugEvent.date >= currmonth.first).all())
+                filter(BugEvent.date >= currmonth.first).\
+                filter(BugEvent.bzid==bm.bugid).all())
 
             n_debuggers = len(curr_debugger_ids)
             varname_to_sum['n_debuggers'] += n_debuggers
@@ -632,10 +634,13 @@ def enrich_bugs_debuggers_nograph(session):
             else:
                 prev_debugger_ids = set(session.query(distinct(BugEvent.dbid)).\
                 filter(BugEvent.date <= currmonth.last).\
-                filter(BugEvent.date >= currmonth.first).all())
+                filter(BugEvent.date >= currmonth.first).\
+                filter(BugEvent.bzid==bm.bugid).all())
                 debugger_churn = len(curr_debugger_ids.difference(prev_debugger_ids))
 
             varname_to_sum['debugger_churn'] += debugger_churn
+
+
 
             # Set prior month vars
             if not found_prior:
@@ -643,7 +648,6 @@ def enrich_bugs_debuggers_nograph(session):
                 for (var, value) in varname_to_sum.items():
                     prior_name = 'bugs_debuggers_' + var + '_prior_month'
                     setattr(bm, prior_name, value)
-
 
 
 
@@ -824,6 +828,7 @@ def enrich_assignee_graph(session):
                 if ass.id not in found_ass_ids:
                     continue
                 else:
+                    # YOUAREHERE This is where the fuckery happens
                     # Joel sayeth: add zeroes for intermediate gaps
                     for varname in varnames:
                         acc[ass.id][varname].append(0)
@@ -872,7 +877,7 @@ def enrich_assignee_graph(session):
 
 
 
-@museumpiece
+#@museumpiece
 def enrich_bug_network(session):
     """
     This function fills in variables relating to the focal bug's position
@@ -899,6 +904,12 @@ def enrich_bug_network(session):
     bug_to_offset_dicts = [defaultdict(int), defaultdict(int)]
     graph = None
     next_graph = None
+
+    varnames = [
+                'constraint', 'clustering', 'closeness', 'effective_size',
+                'efficiency', 'effective_size_churn',
+            ]
+
     for (month, nextmonth) in monthpairs(session.query(Month).order_by(Month.first)):
         acc = accs[acc_index]
         acc_index = (acc_index+1)%2
@@ -925,6 +936,13 @@ def enrich_bug_network(session):
             except KeyError:
                 # If this bug doesn't have any activity this month, then all these
                 # variables are null
+                # YOUAREHERE : no! The above comment is a lie, and this code needs to be amended
+                # use old avgs, and leave prior month vars as None
+                for varname in varnames:
+                    avg_name = 'bug_' + varname + '_past_monthly_avg'
+                    avg_denom = float(npastmonths + bug_to_offset[bug.id])
+                    avg = acc[bug.id][varname]/avg_denom
+                    setattr(bm, avg_name, avg)
                 continue
             # see: https://bugs.launchpad.net/igraph/+bug/1170016 (I made it!)
             constraint = vertex.constraint()[0]
@@ -934,10 +952,7 @@ def enrich_bug_network(session):
             efficiency = graph.efficiency(vertex)
             effective_size_churn = MozGraph.effective_size_churn(bug, graph, next_graph)
 
-            varnames = [
-                'constraint', 'clustering', 'closeness', 'effective_size',
-                'efficiency', 'effective_size_churn',
-            ]
+
             for varname in varnames:
                 value = locals()[varname]
                 #assert isinstance(value, float) or\

@@ -64,16 +64,55 @@ def populate_dm():
     print "Populated debuggermonths"
     session.commit()
 
+def delete_bd_graph():
+    from src.bugmonth_variables import BugMonth
+    varnames = [
+        'constraint', 'closeness', 'clustering', 'indegree', 'outdegree',
+        'betweenness', 'effective_size', 'efficiency', 'alter_churn',
+        'effective_size_churn',
+                ]
+    cum_varnames = ['alter_churn', 'effective_size_churn']
+
+    hitlist = set([])
+    for varname in varnames:
+        prior_name = 'bugs_debuggers_' + varname + '_prior_month'
+        hitlist.add(prior_name)
+        avg_name = 'bugs_debuggers_' + varname + '_past_monthly_avg'
+        hitlist.add(avg_name)
+        cum_name = 'bugs_debuggers_' + varname + '_cumulative'
+        if varname in cum_varnames:
+            hitlist.add(cum_name)
+
+    for bm in session.query(BugMonth):
+        for varname in hitlist:
+            setattr(bm, varname, None)
+
+    session.commit()
+
 
 logger = logging.getLogger()
 logger.setLevel('INFO')
 FORMAT = '%(asctime)s [%(levelname)s]: %(message)s'
 logging.basicConfig(format=FORMAT)
 
+#from src.debuggerquarter import *
+
+import src.quarterly_var_recipes as q
+import src.debuggermonth as dm
+import src.debuggerquarter as dq
+
+#dq.populate_debuggerquarters(session)
+#q.enrich_bugs_debuggers_graph_quarterly(session)
+q.enrich_bugs_debuggers_avgavg(session)
+
+#populate_debuggerquarters(session)
+#bandaid(session)
+
 #from src.bugmonth_variables import enrich_bugs_debuggers_avgavg as avgavg # underway now YOUAREHERE
 
-from src.bugmonth_variables import enrich_bugs_debuggers_lastbandaid as bandaid
-from src.bugmonth_variables import enrich_assignee_lastbandaid as lastbandaid
+#from src.bugmonth_variables import enrich_bugs_debuggers_graph as bandaid
+#from src.bugmonth_variables import enrich_bugs_debuggers_nograph as bandaid
+#from src.bugmonth_variables import enrich_assignee_lastbandaid as lastbandaid
 #from src.bugmonth_variables import assignee_nbugs_bandaid as bandaid
 #from src.bugs import Bug
 #from src.undirected_chats import populate_undirected as pop

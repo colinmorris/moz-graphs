@@ -47,6 +47,16 @@ class Month(Base):
         assert last is None or (self.first - last.first).days == 28
         return last
 
+    def next(self, session):
+        """Return the next NON-OVERLAPPING month, or None if none
+        exists.
+        """
+        #if self.id <= 2:
+        #    raise ValueError("No previous month in table.")
+        next = session.query(Month).filter_by(id = self.id+2).scalar()
+        assert next is None or (next.first - self.first).days == 28
+        return next
+
     def get_network(self):
         raise NotImplementedError
 
@@ -61,6 +71,28 @@ class Month(Base):
 
     def __repr__(self):
         return str(self)
+
+class Quarter(object):
+
+    quarterspan = datetime.timedelta(days=28*3-1)
+
+    def __init__(self, **kwargs):
+        # Hackety hack hack hack
+        if 'next' in kwargs:
+            self.last = kwargs['next'].first - datetime.timedelta(days=1)
+            self.first = self.last - self.quarterspan
+        elif 'first' in kwargs:
+            self.first = kwargs['first'].first
+            self.last = self.first + self.quarterspan
+        elif 'last' in kwargs:
+            self.last = kwargs['last'].last
+            self.first = self.last - self.quarterspan
+        else:
+            raise ValueError("Specify either the first or the last month")
+
+    def prev(self):
+        return Quarter(next=self)
+
 
 class MonthSet(object):
     """A sorted collection of Months."""

@@ -1,0 +1,6 @@
+# To update the database to reflect new or changed tables
+alembic revision --autogenerate -m 'message'
+alembic upgrade head
+
+# To dump the bugmonths table to a csv file
+???

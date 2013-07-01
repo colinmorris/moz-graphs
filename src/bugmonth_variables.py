@@ -180,10 +180,6 @@ class BugMonth(Base):
     assignee_effective_size_churn_cumulative = Column(Float)
 
 
-    ############ EVERYTHING ABOVE HERE IS IMPLEMENTED AND IN THE TABLE ##############
-    ############ (unless otherwise noted) ############
-    ############ EVERYTHING BELOW IS NOT  ############
-
     # __BUG'S DEBUGGERS__
     # _Non-network_
     ndebuggers_prior_month = DeprecatedColumn(Integer) # TODO: deprecated
@@ -203,7 +199,7 @@ class BugMonth(Base):
     bugs_debuggers_n_reported_bugs_prior_month_variance = Column(Float)
     bugs_debuggers_n_reported_bugs_past_monthly_avg = Column(Float)
     bugs_debuggers_n_reported_bugs_cumulative = Column(Integer) # TODO: Can I change this to float?
-
+    
 
     # XXX TODO FIXME: Most of the below/above vars should have a FLOAT column for cumulative,
     # because it's a sum of averages. Motherfucker. I guess sqlite is pretty permissive about
@@ -275,6 +271,84 @@ class BugMonth(Base):
     bugs_debuggers_effective_size_churn_prior_month = Column(Float)
     bugs_debuggers_effective_size_churn_past_monthly_avg = Column(Float)
     bugs_debuggers_effective_size_churn_cumulative = Column(Float)
+    
+    #__ BUG'S DEBUGGERS QUARTERLY VARS __
+    
+    # Non-network
+    
+    bugs_debuggers_n_debuggers_prior_quarter = Column(Integer)
+    bugs_debuggers_n_debuggers_past_quarterly_avg = Column(Float)
+    bugs_debuggers_n_debuggers_quarterly_cumulative = Column(Integer)
+
+    bugs_debuggers_debugger_churn_prior_quarter = Column(Integer)
+    bugs_debuggers_debugger_churn_past_quarterly_avg = Column(Float)
+    bugs_debuggers_debugger_churn_quarterly_cumulative = Column(Integer)
+    
+    # --
+    
+    bugs_debuggers_n_bugs_contributed_to_prior_quarter_avg = Column(Float)
+    bugs_debuggers_n_bugs_contributed_to_prior_quarter_variance = Column(Float)
+    bugs_debuggers_n_bugs_contributed_to_past_quarterly_avg = Column(Float)
+    bugs_debuggers_n_bugs_contributed_to_quarterly_cumulative = Column(Integer)
+
+    bugs_debuggers_n_history_events_focal_prior_quarter_avg = Column(Float)
+    bugs_debuggers_n_history_events_focal_prior_quarter_variance = Column(Float)
+    bugs_debuggers_n_history_events_focal_past_quarterly_avg = Column(Float)
+    bugs_debuggers_n_history_events_focal_quarterly_cumulative = Column(Integer)
+
+    bugs_debuggers_n_history_events_other_prior_quarter_avg = Column(Float)
+    bugs_debuggers_n_history_events_other_prior_quarter_variance = Column(Float)
+    bugs_debuggers_n_history_events_other_past_quarterly_avg = Column(Float)
+    bugs_debuggers_n_history_events_other_quarterly_cumulative = Column(Integer)
+
+    bugs_debuggers_n_irc_links_prior_quarter_avg = Column(Float)
+    bugs_debuggers_n_irc_links_prior_quarter_variance = Column(Float)
+    bugs_debuggers_n_irc_links_past_quarterly_avg = Column(Float)
+    bugs_debuggers_n_irc_links_quarterly_cumulative = Column(Integer)
+
+    bugs_debuggers_n_irc_messages_directed_prior_quarter_avg = Column(Float)
+    bugs_debuggers_n_irc_messages_directed_prior_quarter_variance = Column(Float)
+    bugs_debuggers_n_irc_messages_directed_past_quarterly_avg = Column(Float)
+    bugs_debuggers_n_irc_messages_directed_quarterly_cumulative = Column(Integer)
+
+    bugs_debuggers_n_irc_messages_undirected_prior_quarter_avg = Column(Float) # TODO
+    bugs_debuggers_n_irc_messages_undirected_prior_quarter_variance = Column(Float)
+    bugs_debuggers_n_irc_messages_undirected_past_quarterly_avg = Column(Float)
+    bugs_debuggers_n_irc_messages_undirected_quarterly_cumulative = Column(Integer)
+    
+    # Network
+    
+    bugs_debuggers_constraint_prior_quarter = Column(Float)
+    bugs_debuggers_constraint_past_quarterly_avg = Column(Float)
+
+    bugs_debuggers_closeness_prior_quarter = Column(Float)
+    bugs_debuggers_closeness_past_quarterly_avg = Column(Float)
+
+    bugs_debuggers_clustering_prior_quarter = Column(Float)
+    bugs_debuggers_clustering_past_quarterly_avg = Column(Float)
+
+    bugs_debuggers_indegree_prior_quarter = Column(Float)
+    bugs_debuggers_indegree_past_quarterly_avg = Column(Float)
+
+    bugs_debuggers_outdegree_prior_quarter = Column(Float)
+    bugs_debuggers_outdegree_past_quarterly_avg = Column(Float)
+
+    bugs_debuggers_betweenness_prior_quarter = Column(Float)
+    bugs_debuggers_betweenness_past_quarterly_avg = Column(Float)
+
+    bugs_debuggers_effective_size_prior_quarter = Column(Float)
+    bugs_debuggers_effective_size_past_quarterly_avg = Column(Float)
+
+    bugs_debuggers_efficiency_prior_quarter = Column(Float)
+    bugs_debuggers_efficiency_past_quarterly_avg = Column(Float)
+
+    bugs_debuggers_alter_churn_prior_quarter = Column(Float)
+    bugs_debuggers_alter_churn_past_quarterly_avg = Column(Float)
+    bugs_debuggers_alter_churn_quarterly_cumulative = Column(Float)
+
+    bugs_debuggers_effective_size_churn_prior_quarter = Column(Float)
+    bugs_debuggers_effective_size_churn_past_quarterly_avg = Column(Float)
+    bugs_debuggers_effective_size_churn_quarterly_cumulative = Column(Float)
 
 
 
@@ -588,7 +662,7 @@ def enrich_bugs_debuggers_avgavg(session):
 
     session.commit()
 
-#@museumpiece
+@museumpiece
 def enrich_bugs_debuggers_nograph(session):
     """Like below, but filling in the non-graph variables.
 
@@ -633,8 +707,8 @@ def enrich_bugs_debuggers_nograph(session):
                 debugger_churn = 0
             else:
                 prev_debugger_ids = set(session.query(distinct(BugEvent.dbid)).\
-                filter(BugEvent.date <= currmonth.last).\
-                filter(BugEvent.date >= currmonth.first).\
+                filter(BugEvent.date <= prevmonth.last).\
+                filter(BugEvent.date >= prevmonth.first).\
                 filter(BugEvent.bzid==bm.bugid).all())
                 debugger_churn = len(curr_debugger_ids.difference(prev_debugger_ids))
 
@@ -674,7 +748,7 @@ def enrich_bugs_debuggers_nograph(session):
     session.commit()
 
 
-@museumpiece
+#@museumpiece
 def enrich_bugs_debuggers_graph(session):
     """
     for each bugmonth:
@@ -724,9 +798,7 @@ def enrich_bugs_debuggers_graph(session):
                 return entry <= currmonth.id
             debuggers = filter(relevant, debuggers)
             if debuggers == []:
-                nmonths += 1
-                currmonth = currmonth.prev(session)
-                continue
+                break
 
             # 2. Get sums of vars for this month
             # varname_to_sum keeps a macro-average, this keeps the 'local average'
@@ -771,8 +843,6 @@ def enrich_bugs_debuggers_graph(session):
 
 
     session.commit()
-
-
 
 @museumpiece
 def enrich_assignee_graph(session):
@@ -1198,7 +1268,9 @@ def enrich_bugcontext_graph(session):
     session.commit()
 
 
-def monthpairs(months):
+
+
+def monthpairs(months, offset=1):
     """[Jan, Jan.5, Feb, Feb.5, Mar...] ->
        [ (Jan, Feb), (Jan.5, Feb.5), (Feb, Mar)...]
 
@@ -1212,8 +1284,10 @@ def monthpairs(months):
     Modified version of a neat little recipe stolen from Python's itertools docs.
     """
     a, b = itertools.tee(months)
-    next(b, None)
-    next(b, None)
+    for i in range(offset):
+        # Do it twice because of overlapping windows thing
+        next(b, None)
+        next(b, None)
     return itertools.izip(a, b)
 
 def doublecount(n):

@@ -14,7 +14,6 @@ class MozGraph(object):
     def __init__(self, month, session):
         self.g = Graph(directed=True)
         self.session = session
-        self.month = month
         self.start = month.first
         self.stop = month.last
         # Mapping ids of debuggers and bugs to their associated vertices

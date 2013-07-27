@@ -90,7 +90,11 @@ class Quarter(object):
         else:
             raise ValueError("Specify either the first or the last month")
 
-    def prev(self):
+    def prev(self, session):
+        # If we've hit the end of our data, return None
+        dayone = session.query(func.min(Month.first)).scalar()
+        if dayone > self.first:
+            return None
         return Quarter(next=self)
 
 

@@ -86,6 +86,28 @@ def bandaid(session):
         lastgraph = graph
     session.commit()
 
+def add_constraint(session):
+    # For efficiency, we restrict our search to those debuggers who have touched a bug in some way
+    first = lambda tup:tup[0]
+    assignee_ids = set(map(first, session.query(distinct(Bug.assignee_id)).all()))
+    bugeventful_ids = set(map(first, session.query(distinct(BugEvent.dbid)).all()))
+
+    bugtouchers = set.union(assignee_ids, bugeventful_ids)
+    n = 0
+    for month in session.query(Month):
+        graph = MozIRCGraph.load(month, session)
+        print "Got graph with %d vertices" % (len(graph.dbid_to_vertex))
+        for (dbid, vertex) in graph.dbid_to_vertex.iteritems():
+            if dbid not in bugtouchers:
+                continue
+            #dm = DebuggerMonth(dbid=dbid, monthid=month.id)
+            dm = session.query(DebuggerMonth).filter_by(dbid=dbid, monthid=month.id).scalar()
+
+            dm.constraint = vertex.constraint()[0]
+
+    session.commit()
+
+
 @museumpiece
 def populate_debuggermonths(session):
     # For efficiency, we restrict our search to those debuggers who have touched a bug in some way

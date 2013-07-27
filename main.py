@@ -100,10 +100,16 @@ logging.basicConfig(format=FORMAT)
 import src.quarterly_var_recipes as q
 import src.debuggermonth as dm
 import src.debuggerquarter as dq
+import src.bugmonth_variables as bmv
+
+#dm.add_constraint(session)
+bmv.enrich_bugs_debuggers_constraint(session)
 
 #dq.populate_debuggerquarters(session)
 #q.enrich_bugs_debuggers_graph_quarterly(session)
-q.enrich_bugs_debuggers_avgavg(session)
+#q.enrich_bugs_debuggers_avgavg(session)
+#q.enrich_bugs_debuggers_nograph(session)
+#q.enrich_bugs_debuggers_lastbandaid(session)
 
 #populate_debuggerquarters(session)
 #bandaid(session)

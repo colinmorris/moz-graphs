@@ -122,7 +122,7 @@ def enrich_bugs_debuggers_graph_quarterly(session):
 
 
 
-
+@museumpiece
 def enrich_bugs_debuggers_avgavg(session):
     """So called because these vars are averages and averages of averages.
     """
@@ -245,7 +245,7 @@ def enrich_bugs_debuggers_avgavg(session):
                     setattr(bm, avg_name, avg)
                     setattr(bm, variance_name, variance)
 
-            currquarter = currquarter.prev()
+            currquarter = currquarter.prev(session)
             nmonths += 1
 
         # Save aggregate variables
@@ -263,7 +263,7 @@ def enrich_bugs_debuggers_avgavg(session):
 
 
 
-
+@museumpiece
 def enrich_bugs_debuggers_nograph(session):
     """Like below, but filling in the non-graph variables.
 
@@ -283,12 +283,13 @@ def enrich_bugs_debuggers_nograph(session):
             interval = min(1000, interval*10)
 
         currmonth = bm.month.prev(session)
-        prevmonth = currmonth.prev(session) if currmonth else None # Need this for churn
+        currquarter = Quarter(last=currmonth) if currmonth else None
+        prevquarter = currquarter.prev(session) if currquarter else None
         found_prior = False
         nmonths = 0
         varname_to_sum = dict((name, 0) for name in vars)
         # TODO: Stop walking backwards when we get to the bug's reported date?
-        while currmonth is not None:
+        while currquarter is not None:
 
             # These vars are heterogeneous enough that I'm gonna kind of deal with
             # them each individually rather than the more structured approach I've
@@ -296,20 +297,20 @@ def enrich_bugs_debuggers_nograph(session):
 
             # N DEBUGGERS
             curr_debugger_ids = set(session.query(distinct(BugEvent.dbid)).\
-                filter(BugEvent.date <= currmonth.last).\
-                filter(BugEvent.date >= currmonth.first).\
+                filter(BugEvent.date <= currquarter.last).\
+                filter(BugEvent.date >= currquarter.first).\
                 filter(BugEvent.bzid==bm.bugid).all())
 
             n_debuggers = len(curr_debugger_ids)
             varname_to_sum['n_debuggers'] += n_debuggers
 
             # DEBUGGER CHURN
-            if prevmonth is None:
+            if prevquarter is None:
                 debugger_churn = 0
             else:
                 prev_debugger_ids = set(session.query(distinct(BugEvent.dbid)).\
-                filter(BugEvent.date <= prevmonth.last).\
-                filter(BugEvent.date >= prevmonth.first).\
+                filter(BugEvent.date <= prevquarter.last).\
+                filter(BugEvent.date >= prevquarter.first).\
                 filter(BugEvent.bzid==bm.bugid).all())
                 debugger_churn = len(curr_debugger_ids.difference(prev_debugger_ids))
 
@@ -327,8 +328,8 @@ def enrich_bugs_debuggers_nograph(session):
 
 
 
-            currmonth = prevmonth
-            prevmonth = prevmonth.prev(session) if prevmonth else None
+            currquarter = prevquarter
+            prevquarter = prevquarter.prev(session) if prevquarter else None
             nmonths += 1
 
         if nmonths == 0:
@@ -387,11 +388,12 @@ def enrich_bugs_debuggers_lastbandaid(session):
             continue
 
         currmonth = bm.month.prev(session)
+        currquarter = Quarter(last=currmonth) if currmonth else None
         found_prior = False
         nmonths = 0
         rep_avgs = [] # TODO: Stopping condition for each of these
         chat_avgs = []
-        while currmonth is not None:
+        while currquarter is not None:
             # Calculate stuff
             nmonths += 1
             reps = []
@@ -400,18 +402,18 @@ def enrich_bugs_debuggers_lastbandaid(session):
             # Reported
             for dbid in dbids:
                 nreps = rep.filter_by(reporter_id=dbid).\
-                    filter(Bug.reported <= currmonth.last).\
-                    filter(Bug.reported >= currmonth.first).count()
+                    filter(Bug.reported <= currquarter.last).\
+                    filter(Bug.reported >= currquarter.first).count()
                 reps.append(nreps)
 
             # Undirected messages
-            # Exclude debuggers s.t. first irc month > currmonth
+            # Exclude debuggers s.t. first irc month > currquarter
             for (dbid, first) in chatters.iteritems():
-                if first > currmonth.last:
+                if first > currquarter.last:
                     continue
                 nchats = undir.filter_by(dbid=dbid).\
-                    filter(UndirectedChat.day <= currmonth.last).\
-                    filter(UndirectedChat.day >= currmonth.first).scalar()
+                    filter(UndirectedChat.day <= currquarter.last).\
+                    filter(UndirectedChat.day >= currquarter.first).scalar()
                 chats.append(nchats or 0)
 
             rep_avg = numpy.mean(reps)
@@ -426,15 +428,15 @@ def enrich_bugs_debuggers_lastbandaid(session):
                 bm.bugs_debuggers_n_irc_messages_undirected_prior_quarter_avg = chat_avg
                 bm.bugs_debuggers_n_irc_messages_undirected_prior_quarter_variance = numpy.var(chats)
 
-            currmonth = currmonth.prev(session)
+            currquarter = currquarter.prev(session)
 
         if nmonths == 0:
             continue
         # Set non-prior vars
-        bm.bugs_debuggers_n_reported_bugs_cumulative = sum(rep_avgs)
+        bm.bugs_debuggers_n_reported_bugs_quarterly_cumulative = sum(rep_avgs)
         bm.bugs_debuggers_n_reported_bugs_past_quarterly_avg = numpy.mean(rep_avgs)
 
         bm.bugs_debuggers_n_irc_messages_undirected_past_quarterly_avg = numpy.mean(chat_avgs)
-        bm.bugs_debuggers_n_irc_messages_undirected_cumulative = sum(chat_avgs)
+        bm.bugs_debuggers_n_irc_messages_undirected_quarterly_cumulative = sum(chat_avgs)
 
     session.commit()

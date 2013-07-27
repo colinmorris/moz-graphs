@@ -748,7 +748,7 @@ def enrich_bugs_debuggers_nograph(session):
     session.commit()
 
 
-#@museumpiece
+@museumpiece
 def enrich_bugs_debuggers_graph(session):
     """
     for each bugmonth:
@@ -764,6 +764,100 @@ def enrich_bugs_debuggers_graph(session):
         'effective_size_churn',
                 ]
     cum_varnames = ['alter_churn', 'effective_size_churn']
+
+    from src.debuggers import Debugger
+    bmcount = 0
+    interval = 10
+    for bm in session.query(BugMonth):
+        bmcount += 1
+        if bmcount % interval == 0:
+            logging.info("Done %d bugmonths" % (bmcount)) # Off by one but I don't care
+            interval = min(1000, interval*10)
+
+        # 1) Get the debuggers for this bugmonth
+        dbids = session.query(distinct(BugEvent.dbid)).\
+            filter_by(bzid=bm.bugid).\
+            filter(BugEvent.date >= bm.month.first).\
+            filter(BugEvent.date <= bm.month.last)
+
+        debuggers = [session.query(Debugger).filter_by(id=dbid[0]).scalar() for dbid in dbids]
+        # Only take talkative debuggers
+        debuggers = [db for db in debuggers if db.nirc > 0]
+        # This actually maps variables names to the sum of averages over a particular
+        # number of months. This is as silly as it sounds.
+        varname_to_sum = dict((name, 0) for name in varnames)
+
+        currmonth = bm.month.prev(session)
+        found_prior = False
+        nmonths = 0
+        while currmonth is not None:
+
+            # 1. Filter out debuggers that are no longer relevant because of time of entry into IRC network
+            def relevant(d):
+                entry = session.query(func.min(DebuggerMonth.monthid)).filter_by(dbid=d.id).scalar()
+                return entry <= currmonth.id
+            debuggers = filter(relevant, debuggers)
+            if debuggers == []:
+                break
+
+            # 2. Get sums of vars for this month
+            # varname_to_sum keeps a macro-average, this keeps the 'local average'
+            local_sums = dict((name, 0) for name in varnames)
+            for db in debuggers:
+                dm = session.query(DebuggerMonth).filter_by(dbid=db.id).\
+                    filter_by(monthid=currmonth.id).scalar()
+                if dm is None:
+                    continue
+                for varname in varnames:
+                    local_sums[varname] += getattr(dm, varname) or 0 # This is kind of a cheat
+
+            # 3 Convert those sums to avgs and add them to running sum
+            for varname in varnames:
+                avg = local_sums[varname]/len(debuggers)
+                varname_to_sum[varname] += avg
+
+            # 3.5 If this is the first iteration, then store the avgs in the prior month vars
+            if not found_prior:
+                found_prior = True
+                for varname in varnames:
+                    prior_name = 'bugs_debuggers_' + varname + '_prior_month'
+                    value = varname_to_sum[varname]
+                    setattr(bm, prior_name, value)
+
+            # 4 Increment nmonths and take another step backward through months
+            nmonths += 1
+            currmonth = currmonth.prev(session)
+
+        # 5 Set the past_monthly_avg and cumulative vars
+        # 5.1 But if we didn't iterate over any months, then leave them as None
+        if nmonths == 0:
+            continue
+
+        for varname in varnames:
+            avg_name = 'bugs_debuggers_' + varname + '_past_monthly_avg'
+            cum_name = 'bugs_debuggers_' + varname + '_cumulative'
+            avg = varname_to_sum[varname]/(nmonths+0.0)
+            setattr(bm, avg_name, avg)
+            if varname in cum_varnames:
+                setattr(bm, cum_name, varname_to_sum[varname])
+
+
+    session.commit()
+
+
+def enrich_bugs_debuggers_constraint(session):
+    """
+    for each bugmonth:
+        get the set of debuggers active on this bug during this month
+        get their constraints etc. for the previous month and store them
+        for each month before that:
+            add their constraints etc. for that month to a running sum
+        save the average
+    """
+    varnames = [
+        'constraint',
+                ]
+    cum_varnames = []
 
     from src.debuggers import Debugger
     bmcount = 0
